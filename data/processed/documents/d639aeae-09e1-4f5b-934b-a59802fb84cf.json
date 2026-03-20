@@ -1,0 +1,16 @@
+{
+  "id": "d639aeae-09e1-4f5b-934b-a59802fb84cf",
+  "filename": "scan.pdf",
+  "title": "scan",
+  "sourceType": "escrito",
+  "subtype": null,
+  "jurisdiction": null,
+  "legalArea": null,
+  "description": null,
+  "priority": 6,
+  "status": "ocr_required",
+  "extractionMode": "ocr_required",
+  "extractedTextLength": 0,
+  "chunkCount": 0,
+  "createdAt": "2026-03-08T12:41:06.389Z"
+}

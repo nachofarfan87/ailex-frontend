@@ -2,6 +2,15 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+### Environment
+
+Create `frontend/.env.local`, paste your Anthropic key, and restart the Next.js server:
+
+```bash
+ANTHROPIC_API_KEY=your_key_here
+npm run dev
+```
+
 First, run the development server:
 
 ```bash

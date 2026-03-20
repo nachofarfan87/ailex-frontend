@@ -1,0 +1,16 @@
+{
+  "id": "f911c411-acc5-4ab6-9ee0-3301cbcf6d2e",
+  "filename": "constitucion_nacional.txt",
+  "title": "CONSTITUCION NACIONAL",
+  "sourceType": "norma",
+  "subtype": "constitucion",
+  "jurisdiction": "Nacional",
+  "legalArea": "Constitucional",
+  "description": "Prueba constitucion",
+  "priority": 1,
+  "status": "processed",
+  "extractionMode": "txt",
+  "extractedTextLength": 207,
+  "chunkCount": 3,
+  "createdAt": "2026-03-08T12:41:06.160Z"
+}

@@ -1,0 +1,244 @@
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--sidebar-width);
+  padding: 24px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background:
+    linear-gradient(180deg, rgba(18, 21, 28, 0.98), rgba(10, 12, 17, 0.98)),
+    radial-gradient(circle at top, rgba(200, 160, 98, 0.08), transparent 48%);
+  border-right: 1px solid var(--border-default);
+  backdrop-filter: blur(18px);
+  z-index: 20;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 10px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.brandMark {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(200, 160, 98, 0.95), rgba(142, 113, 69, 0.9));
+  color: #120f0a;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  box-shadow: 0 10px 28px rgba(200, 160, 98, 0.24);
+}
+
+.brandName {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.brandCopy {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  color: var(--text-secondary);
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.navLink:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.06);
+  transform: translateX(2px);
+}
+
+.navLinkActive {
+  color: var(--text-primary);
+  background: linear-gradient(135deg, rgba(200, 160, 98, 0.18), rgba(110, 140, 255, 0.08));
+  border-color: rgba(200, 160, 98, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.navIcon {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.navLabel {
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.statusCard {
+  margin-top: auto;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(200, 160, 98, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
+    rgba(14, 17, 22, 0.88);
+}
+
+.statusEyebrow {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+
+.statusRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.statusRow:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.statusLabel {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.statusValue {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.statusCopy {
+  margin-top: 10px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 960px) {
+  .sidebar {
+    position: sticky;
+    inset: 0;
+    width: 100%;
+    height: auto;
+    padding: 10px 12px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-default);
+    gap: 10px;
+  }
+
+  .brand {
+    padding: 0;
+    border-bottom: none;
+    gap: 10px;
+  }
+
+  .brandMark {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    font-size: 0.64rem;
+  }
+
+  .brandName {
+    font-size: 1.1rem;
+  }
+
+  .brandCopy {
+    font-size: 0.72rem;
+    margin-top: 2px;
+  }
+
+  .nav {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    gap: 8px;
+    scrollbar-width: none;
+  }
+
+  .nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .navLink {
+    flex: 0 0 auto;
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: 999px;
+  }
+
+  .navIcon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .navLabel {
+    font-size: 0.84rem;
+  }
+
+  .statusCard {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar {
+    padding: 8px 10px;
+  }
+
+  .brandCopy {
+    display: none;
+  }
+
+  .nav {
+    gap: 6px;
+  }
+
+  .navLink {
+    min-height: 34px;
+    padding: 0 10px;
+  }
+
+  .navLabel {
+    font-size: 0.78rem;
+  }
+}

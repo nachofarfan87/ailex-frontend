@@ -1,0 +1,16 @@
+{
+  "id": "88c5d7d5-b28a-435f-9fa5-d754376e6ec2",
+  "filename": "codigo_procesal_jujuy.txt",
+  "title": "CODIGO PROCESAL CIVIL Y COMERCIAL DE JUJUY",
+  "sourceType": "norma",
+  "subtype": "codigo_procesal",
+  "jurisdiction": "Jujuy",
+  "legalArea": "Procesal Civil y Comercial",
+  "description": "Prueba codigo procesal",
+  "priority": 2,
+  "status": "processed",
+  "extractionMode": "txt",
+  "extractedTextLength": 253,
+  "chunkCount": 3,
+  "createdAt": "2026-03-08T12:41:06.167Z"
+}

@@ -1,0 +1,938 @@
+.shell {
+  display: grid;
+  gap: 20px;
+}
+
+.chatShell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  align-items: start;
+}
+
+.chatPrimary {
+  display: grid;
+  gap: 0;
+  padding: 0;
+}
+
+.heroStage,
+.threadStage,
+.workspace,
+.workspaceStack,
+.resultsStack {
+  display: grid;
+  gap: 18px;
+}
+
+.heroStage {
+  justify-items: center;
+  align-content: center;
+  gap: 18px;
+  min-height: calc(100vh - 168px);
+  padding: 26px 24px 40px;
+  text-align: center;
+}
+
+.threadStage {
+  min-width: 0;
+  gap: 18px;
+  width: min(100%, 1380px);
+  margin: 0 auto;
+  padding: 6px 0 0;
+}
+
+.topAccessBar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  width: min(100%, 1380px);
+  margin: 0 auto;
+  padding: 28px 8px 0 0;
+}
+
+.accessButton {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 999px;
+  background: rgba(16, 20, 28, 0.54);
+  color: var(--text-primary);
+  font: inherit;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+  transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.accessButton:hover {
+  border-color: rgba(200, 160, 98, 0.24);
+  background: rgba(18, 23, 32, 0.72);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(4, 7, 12, 0.18);
+}
+
+.accessButtonLabel {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.drawerOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(4, 7, 12, 0.34);
+  backdrop-filter: blur(3px);
+}
+
+.authDrawer {
+  width: min(100%, 368px);
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  padding: 14px;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(18, 22, 31, 0.985), rgba(9, 12, 18, 0.99)),
+    rgba(9, 12, 18, 0.99);
+  box-shadow: -24px 0 44px rgba(4, 7, 12, 0.28);
+}
+
+.authDrawerHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 2px 10px;
+}
+
+.authDrawerBody {
+  overflow: auto;
+  padding-top: 2px;
+}
+
+.heroCopyCompact,
+.heroCopy {
+  display: grid;
+  gap: 8px;
+  max-width: 920px;
+  justify-items: center;
+}
+
+.eyebrow {
+  font-size: 0.76rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #8d97aa;
+}
+
+.heroTitle {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(3.3rem, 6vw, 5.8rem);
+  line-height: 0.88;
+  letter-spacing: -0.065em;
+  color: var(--text-primary);
+}
+
+.heroText {
+  margin: 0;
+  max-width: 40ch;
+  font-size: clamp(0.94rem, 1.2vw, 1.08rem);
+  line-height: 1.45;
+  color: #a7b0be;
+  letter-spacing: 0.01em;
+}
+
+.utilityMeta,
+.operationalStatus,
+.status,
+.authHint,
+.historyTimestamp,
+.expedienteMeta {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+
+.operationalStatus {
+  max-width: 460px;
+  text-align: right;
+}
+
+.contextBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.014)),
+    rgba(14, 18, 25, 0.9);
+  padding: 14px 16px;
+}
+
+.contextBarLabel {
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #919bad;
+}
+
+.form {
+  display: grid;
+  gap: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.018)),
+    rgba(11, 15, 22, 0.96);
+  padding: 18px 20px 20px;
+  box-shadow: 0 22px 52px rgba(4, 7, 12, 0.24);
+}
+
+.formCentered {
+  width: min(100%, 1080px);
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.fieldGridCompact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.fieldLabel {
+  font-size: 0.74rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8d97aa;
+}
+
+.control,
+.textarea {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+  font: inherit;
+  transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.control {
+  min-height: 48px;
+  padding: 0 14px;
+}
+
+.textarea {
+  min-height: 144px;
+  resize: vertical;
+  padding: 16px 18px;
+  line-height: 1.74;
+}
+
+.control:focus,
+.textarea:focus {
+  outline: none;
+  border-color: rgba(200, 160, 98, 0.3);
+  box-shadow: 0 0 0 4px rgba(200, 160, 98, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.suggestion {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 999px;
+  padding: 10px 14px;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  transition: border-color 180ms ease, transform 180ms ease, background 180ms ease;
+}
+
+.suggestion:hover {
+  border-color: rgba(200, 160, 98, 0.28);
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-1px);
+}
+
+.actions,
+.assistantHeader,
+.foundationHead,
+.workspaceHead,
+.historyHeader,
+.historySubheader,
+.historyItemTop,
+.contextHeader,
+.authHeader,
+.authActions,
+.exportBar,
+.threadHeader,
+.utilityDrawerHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.actions {
+  align-items: end;
+}
+
+.actionButtons,
+.assistantMeta,
+.foundationMeta,
+.workspaceMeta,
+.contextMeta,
+.authTabs,
+.exportActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.primaryButton,
+.secondaryButton,
+.authTab,
+.expedienteAction {
+  appearance: none;
+  border-radius: 16px;
+  padding: 11px 16px;
+  font: inherit;
+  font-weight: 600;
+  transition: transform 180ms ease, opacity 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.primaryButton {
+  border: 1px solid rgba(200, 160, 98, 0.38);
+  background: linear-gradient(135deg, rgba(200, 160, 98, 0.94), rgba(148, 114, 69, 0.96));
+  color: #140f09;
+}
+
+.secondaryButton,
+.authTab,
+.expedienteAction {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+}
+
+.primaryButton:hover,
+.secondaryButton:hover,
+.authTab:hover,
+.expedienteAction:hover {
+  transform: translateY(-1px);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.authTab:disabled,
+.expedienteAction:disabled,
+.accessButton:disabled,
+.expedienteButton:disabled,
+.historyItem:disabled {
+  opacity: 0.6;
+  transform: none;
+  box-shadow: none;
+}
+
+.assistantCard {
+  display: grid;
+  gap: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 26px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+    rgba(9, 13, 19, 0.985);
+  padding: 22px 24px 24px;
+}
+
+.assistantLead {
+  display: grid;
+  gap: 8px;
+  max-width: 96ch;
+}
+
+.assistantTitle {
+  margin: 0;
+  font-size: clamp(1.35rem, 1.9vw, 1.72rem);
+  line-height: 1.22;
+  color: var(--text-primary);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #d5dde9;
+  font-size: 0.83rem;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pillStrong {
+  background: rgba(200, 160, 98, 0.18);
+  color: #f5deaf;
+  border-color: rgba(200, 160, 98, 0.22);
+}
+
+.pillAlert {
+  background: rgba(215, 163, 91, 0.14);
+  color: #f2c983;
+  border-color: rgba(215, 163, 91, 0.2);
+}
+
+.pillDanger {
+  background: rgba(213, 114, 103, 0.16);
+  color: #ffc2ba;
+  border-color: rgba(213, 114, 103, 0.22);
+}
+
+.summary,
+.panelText,
+.emptyNote,
+.messageQuery,
+.workspaceIntro p,
+.utilityDrawerText {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+.summary {
+  font-size: 1.05rem;
+  color: var(--text-primary);
+  max-width: 84ch;
+  line-height: 1.78;
+}
+
+.primaryResultGrid,
+.resultsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.panel,
+.secondarySurface,
+.historyPanel,
+.authPanel,
+.contextPanel,
+.utilityDrawer {
+  display: grid;
+  gap: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.022), rgba(255, 255, 255, 0.008)),
+    rgba(12, 16, 23, 0.97);
+  padding: 16px 18px;
+}
+
+.panelFull {
+  grid-column: 1 / -1;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 0.74rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #a4afc2;
+}
+
+.panelEditorial {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.008)),
+    rgba(14, 18, 25, 0.98);
+}
+
+.panelSignal {
+  background:
+    linear-gradient(180deg, rgba(200, 160, 98, 0.04), rgba(255, 255, 255, 0.008)),
+    rgba(14, 18, 25, 0.98);
+}
+
+.resultsSection {
+  gap: 16px;
+}
+
+.foundationList,
+.warningList,
+.strategyList,
+.workspaceList,
+.historyList,
+.expedienteList {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.foundationItem,
+.warningItem,
+.strategyItem,
+.workspaceCard,
+.historyItem,
+.expedienteButton,
+.authIdentity {
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 16px;
+}
+
+.foundationTitle,
+.workspaceTitle,
+.historyTitle,
+.contextTitle,
+.authTitle,
+.utilityDrawerTitle,
+.threadTitle,
+.historySectionTitle {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.foundationTitle,
+.workspaceTitle {
+  font-size: 1.02rem;
+}
+
+.threadTitle {
+  font-family: var(--font-serif);
+  font-size: clamp(2rem, 3vw, 3rem);
+  line-height: 0.96;
+  letter-spacing: -0.05em;
+}
+
+.historySectionTitle {
+  font-size: 0.88rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9ca6b8;
+}
+
+.threadHeaderCopy {
+  display: grid;
+  gap: 6px;
+  max-width: 720px;
+}
+
+.threadSummary {
+  display: block;
+  margin: 0;
+  color: #a7b0be;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+}
+
+.threadViewport {
+  display: grid;
+  min-width: 0;
+  width: 100%;
+  padding: 8px 10px 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.012), rgba(255, 255, 255, 0.004)),
+    rgba(7, 10, 15, 0.72);
+}
+
+.threadComposer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  width: 100%;
+  max-width: 1380px;
+  margin: 0 auto;
+  padding-top: 2px;
+}
+
+.threadHeader {
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+}
+
+.confidenceBlock,
+.strategyBlock,
+.workspaceIntro,
+.authForm,
+.expedienteItem,
+.utilityDrawerBody,
+.expedienteContextCard,
+.expedienteContextStack,
+.expedienteContextNote {
+  display: grid;
+  gap: 12px;
+}
+
+.meter {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #c8a062, #6a86af);
+}
+
+.docBox {
+  border-radius: 20px;
+  background: #101828;
+  color: #e9eef8;
+  padding: 16px;
+  overflow: auto;
+}
+
+.docBox pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: inherit;
+  line-height: 1.72;
+}
+
+.threadLoading {
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 20px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+}
+
+.workspaceIntro h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.messageBody {
+  width: 100%;
+  display: grid;
+  gap: 10px;
+}
+
+.messageLabel {
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #f0d7a5;
+  font-weight: 700;
+}
+
+.messageQuery {
+  font-size: 0.98rem;
+  line-height: 1.7;
+  color: #f2f5f9;
+}
+
+.panelText {
+  font-size: 0.96rem;
+  line-height: 1.78;
+}
+
+.resultsStack {
+  gap: 14px;
+}
+
+.historyItem,
+.expedienteButton {
+  width: 100%;
+  display: grid;
+  gap: 10px;
+  text-align: left;
+  transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.historyItem:hover,
+.expedienteButton:hover {
+  border-color: rgba(200, 160, 98, 0.24);
+  box-shadow: 0 10px 24px rgba(4, 7, 12, 0.22);
+  transform: translateY(-1px);
+}
+
+.historyItemActive,
+.expedienteButtonActive,
+.authTabActive {
+  border-color: rgba(200, 160, 98, 0.3);
+  box-shadow: 0 12px 28px rgba(4, 7, 12, 0.24);
+}
+
+.authTabActive {
+  background: rgba(200, 160, 98, 0.16);
+  color: #f7f9fc;
+}
+
+.authError,
+.errorBox {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(213, 114, 103, 0.28);
+  border-radius: 18px;
+  background: rgba(213, 114, 103, 0.12);
+  color: #ffc7c0;
+  padding: 14px;
+}
+
+.historyQuery,
+.expedienteName {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.historyQuery {
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
+.expedienteName {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.historyMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+
+.expedienteComposer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.expedienteContextCard,
+.expedienteContextNote {
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.012)),
+    rgba(10, 14, 20, 0.92);
+  padding: 16px;
+}
+
+.expedienteContextGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.expedienteContextActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.expedienteActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.exportBar {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.025);
+  padding: 12px 14px;
+}
+
+.exportStatus {
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+}
+
+.threadBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(110, 140, 255, 0.14);
+  color: #cfd8f8;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: 1px solid rgba(110, 140, 255, 0.2);
+}
+
+.utilityDrawer {
+  position: sticky;
+  top: 24px;
+}
+
+.disclosure {
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+}
+
+.disclosureSummary {
+  cursor: pointer;
+  list-style: none;
+  padding: 14px 16px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.disclosureSummary::-webkit-details-marker {
+  display: none;
+}
+
+.disclosureBody {
+  padding: 0 16px 16px;
+}
+
+@media (min-width: 1180px) {
+  .chatShell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 1080px) {
+  .fieldGrid,
+  .primaryResultGrid,
+  .resultsGrid,
+  .expedienteContextGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .operationalStatus {
+    max-width: none;
+    text-align: left;
+  }
+}
+
+@media (max-width: 720px) {
+  .chatPrimary {
+    gap: 0;
+  }
+
+  .topAccessBar {
+    width: 100%;
+    padding: 20px 0 0;
+  }
+
+  .accessButton {
+    width: auto;
+    min-height: 38px;
+  }
+
+  .authDrawer {
+    width: min(100%, 100vw);
+    padding: 12px;
+  }
+
+  .form {
+    border-radius: 22px;
+    padding: 14px;
+  }
+
+  .fieldGrid,
+  .fieldGridCompact,
+  .primaryResultGrid,
+  .resultsGrid,
+  .expedienteContextGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .heroTitle {
+    font-size: 3rem;
+  }
+
+  .heroStage {
+    min-height: auto;
+    padding: 18px 0 26px;
+  }
+
+  .actions,
+  .assistantHeader,
+  .foundationHead,
+  .workspaceHead,
+  .historyHeader,
+  .historySubheader,
+  .historyItemTop,
+  .contextHeader,
+  .authHeader,
+  .authActions,
+  .exportBar,
+  .threadHeader,
+  .utilityDrawerHeader,
+  .authDrawerHeader,
+  .contextBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actionButtons,
+  .primaryButton,
+  .secondaryButton,
+  .expedienteContextActions {
+    width: 100%;
+  }
+
+  .expedienteComposer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .threadViewport {
+    padding: 0;
+    border: none;
+    background: transparent;
+  }
+
+  .threadComposer {
+    position: static;
+    max-width: none;
+  }
+}
