@@ -1,5 +1,7 @@
 import { clearAuthSession, getStoredAccessToken } from './authSession';
 
+// En producción, dejar NEXT_PUBLIC_API_URL vacío para usar el proxy de Next.js rewrites
+// (evita problemas de CORS). Solo configurar si se necesita apuntar directo al backend.
 const BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 class AuthExpiredError extends Error {
@@ -35,7 +37,9 @@ async function request(path, options = {}) {
     }
 
     const error = await response.json().catch(() => ({ detail: response.statusText }));
-    throw new Error(error.detail || error.message || `HTTP ${response.status}`);
+    const errorMsg = error.detail || error.message || `HTTP ${response.status}`;
+    console.error(`[AILEX API] ${rest.method || 'GET'} ${url} → ${response.status}: ${errorMsg}`);
+    throw new Error(errorMsg);
   }
 
   const contentType = response.headers.get('content-type') || '';
