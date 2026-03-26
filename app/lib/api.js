@@ -1,7 +1,7 @@
 import { clearAuthSession, getStoredAccessToken } from './authSession';
 
-// En producción, dejar NEXT_PUBLIC_API_URL vacío para usar el proxy de Next.js rewrites
-// (evita problemas de CORS). Solo configurar si se necesita apuntar directo al backend.
+// En producción: NEXT_PUBLIC_API_URL = URL del backend Railway (ej: https://web-production-9d32a.up.railway.app)
+// En dev local: no definir → usa rutas relativas que Next.js resuelve localmente
 const BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 class AuthExpiredError extends Error {
