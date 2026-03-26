@@ -27,6 +27,7 @@ import {
   formatConfidence,
   normalizeLegalQueryResponse,
 } from './lib/legalQuery';
+import { adaptLegalResultForDisplay } from './lib/legalResultAdapter';
 import {
   buildRemoteWorkspace,
   createRemoteDefaultExpediente,
@@ -251,6 +252,7 @@ function LoadingMessage() {
 
 function WorkspaceCard({ response, index }) {
   const warnings = collectLegalWarnings(response);
+  const display = adaptLegalResultForDisplay(response);
   const topFoundation = response.reasoning.normative_foundations[0];
 
   return (
@@ -269,7 +271,9 @@ function WorkspaceCard({ response, index }) {
         <li className={styles.strategyItem}>
           <p className={styles.panelText}>
             {compactText(
-              response.reasoning.short_answer ||
+              display.quickStart ||
+                display.summary ||
+                response.reasoning.short_answer ||
                 response.reasoning.case_analysis ||
                 'Respuesta breve no informada.',
               160,

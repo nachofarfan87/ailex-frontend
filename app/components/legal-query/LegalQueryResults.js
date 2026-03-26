@@ -6,15 +6,15 @@ import LegalStrategy from './LegalStrategy';
 import LegalWarnings from './LegalWarnings';
 import NormativeFoundations from './NormativeFoundations';
 import ProceduralStrategy from './ProceduralStrategy';
+import { adaptLegalResultForDisplay } from '@/app/lib/legalResultAdapter';
 import {
   collectLegalWarnings,
-  compactText,
   formatConfidence,
   humanizeLabel,
   normalizeLegalQueryResponse,
 } from '@/app/lib/legalQuery';
 
-function ConfidencePanel({ response }) {
+function ConfidencePanel({ response, display }) {
   const confidence = typeof response.confidence === 'number' ? response.confidence : 0;
   const width = `${Math.round(Math.max(0, Math.min(1, confidence)) * 100)}%`;
 
@@ -40,78 +40,48 @@ function ConfidencePanel({ response }) {
         <span style={{ width }} />
       </div>
       <p className={styles.panelText}>
-        Ajuste de seguridad:{' '}
-        {response.hallucination_guard.confidence_adjustment ?? 'no informado'}.
+        {display.confidenceExplained ||
+          `Confianza estimada del sistema: ${formatConfidence(response.confidence)}.`}
       </p>
     </div>
   );
 }
 
-function RetrievedContext({ items = [], citations = [] }) {
-  const visibleItems = items.slice(0, 4);
-  const visibleCitations = citations.slice(0, 4);
-
-  if (!visibleItems.length && !visibleCitations.length) {
-    return <p className={styles.emptyNote}>No se informaron piezas de contexto recuperadas.</p>;
-  }
-
+function ListPanel({ title, items = [], emptyMessage }) {
   return (
-    <div className={styles.shell}>
-      {visibleItems.length ? (
-        <ul className={styles.foundationList}>
-          {visibleItems.map((item, index) => (
-            <li
-              key={`${item.source_id || item.label || 'item'}-${index}`}
-              className={styles.foundationItem}
-            >
-              <div className={styles.foundationHead}>
-                <h4 className={styles.foundationTitle}>
-                  {item.label || item.titulo || item.title || `Articulo ${item.article || '-'}`}
-                </h4>
-                <div className={styles.foundationMeta}>
-                  {item.source_id ? (
-                    <span className={styles.pill}>{humanizeLabel(item.source_id)}</span>
-                  ) : null}
-                  {item.match_type ? (
-                    <span className={styles.pill}>{humanizeLabel(item.match_type)}</span>
-                  ) : null}
-                </div>
-              </div>
-              <p className={styles.panelText}>
-                {compactText(item.texto || item.text || '', 220) || 'Sin extracto disponible.'}
-              </p>
+    <div className={styles.panel}>
+      <h4 className={styles.panelTitle}>{title}</h4>
+      {items.length ? (
+        <ul className={styles.strategyList}>
+          {items.map((item, index) => (
+            <li key={`${title}-${item}-${index}`} className={styles.strategyItem}>
+              <p className={styles.panelText}>{item}</p>
             </li>
           ))}
         </ul>
-      ) : null}
-
-      {visibleCitations.length ? (
-        <div className={styles.assistantMeta}>
-          {visibleCitations.map((citation, index) => (
-            <span key={`${citation}-${index}`} className={styles.pill}>
-              {typeof citation === 'string'
-                ? citation
-                : humanizeLabel(citation?.label || citation?.source_id || 'Cita')}
-            </span>
-          ))}
-        </div>
-      ) : null}
+      ) : (
+        <p className={styles.emptyNote}>{emptyMessage}</p>
+      )}
     </div>
   );
 }
 
 export default function LegalQueryResults({ response, requestContext = {} }) {
   const normalized = normalizeLegalQueryResponse(response);
+  const display = adaptLegalResultForDisplay(normalized);
   const warnings = collectLegalWarnings(normalized);
-  const shortAnswer =
-    normalized.visible_summary ||
-    'El backend respondio sin resumen breve. Revisar fundamentos y estrategia.';
-  const hasSpecificStrategy =
-    Boolean(normalized.case_strategy.strategic_narrative) ||
-    normalized.case_strategy.recommended_actions.length > 0 ||
-    normalized.case_strategy.conflict_summary.length > 0;
-  const showNormativeFirst =
-    normalized.normative_reasoning.applied_rules.length > 0 && !hasSpecificStrategy;
+  const professionalMode = display.professionalMode;
+  const hasProfessionalMode = Boolean(
+    professionalMode.summary ||
+      professionalMode.strategic_narrative ||
+      professionalMode.recommended_actions.length ||
+      professionalMode.risk_analysis.length ||
+      professionalMode.conflict_summary.length ||
+      professionalMode.procedural_focus.length ||
+      professionalMode.critical_missing_information.length ||
+      professionalMode.ordinary_missing_information.length ||
+      professionalMode.normative_focus.length,
+  );
 
   return (
     <article className={styles.assistantCard}>
@@ -119,9 +89,9 @@ export default function LegalQueryResults({ response, requestContext = {} }) {
         <div className={styles.assistantLead}>
           <p className={styles.eyebrow}>Resultado juridico</p>
           <h3 className={styles.assistantTitle}>
-            {normalized.query || 'Consulta juridica procesada'}
+            {display.title || normalized.query || 'Resultado juridico'}
           </h3>
-          <p className={styles.summary}>{shortAnswer}</p>
+          <p className={styles.summary}>{display.summary}</p>
         </div>
 
         <div className={styles.assistantMeta}>
@@ -145,51 +115,51 @@ export default function LegalQueryResults({ response, requestContext = {} }) {
 
       <section className={styles.primaryResultGrid}>
         <section className={`${styles.panel} ${styles.panelEditorial}`}>
-          <h4 className={styles.panelTitle}>Respuesta breve</h4>
-          <p className={styles.panelText}>{shortAnswer}</p>
-          {normalized.case_domains.length ? (
-            <p className={styles.panelText}>
-              Dominios detectados: {normalized.case_domains.map(humanizeLabel).join(', ')}
-            </p>
+          <h4 className={styles.panelTitle}>Que significa esto</h4>
+          <p className={styles.panelText}>{display.whatThisMeans || display.summary}</p>
+          {display.quickStart ? (
+            <div className={styles.strategyBlock}>
+              <h5 className={styles.foundationTitle}>Primer paso recomendado</h5>
+              <p className={styles.panelText}>{display.quickStart}</p>
+            </div>
           ) : null}
         </section>
 
         <section className={`${styles.panel} ${styles.panelSignal}`}>
           <h4 className={styles.panelTitle}>Confianza del sistema</h4>
-          <ConfidencePanel response={normalized} />
+          <ConfidencePanel response={normalized} display={display} />
         </section>
       </section>
 
       <div className={styles.resultsStack}>
-        <section className={`${styles.panel} ${styles.resultsSection}`}>
-          <h4 className={styles.panelTitle}>Estrategia juridica</h4>
-          <LegalStrategy
-            strategy={normalized.case_strategy}
-            caseDomain={normalized.case_domain}
-            caseDomains={normalized.case_domains}
+        <section className={styles.resultsGrid}>
+          <ListPanel
+            title="Proximos pasos"
+            items={display.nextSteps}
+            emptyMessage="No se informaron pasos concretos adicionales."
+          />
+          <ListPanel
+            title="Riesgos a tener en cuenta"
+            items={display.keyRisks}
+            emptyMessage="No se reportaron riesgos relevantes para esta orientacion inicial."
           />
         </section>
 
         <section className={`${styles.panel} ${styles.resultsSection}`}>
-          <h4 className={styles.panelTitle}>
-            {showNormativeFirst ? 'Fundamentos normativos' : 'Normativa relevante o secundaria'}
-          </h4>
-          <NormativeFoundations
-            items={
-              showNormativeFirst
-                ? normalized.reasoning.normative_foundations
-                : normalized.normative_reasoning.applied_rules
-            }
-          />
-        </section>
-
-        <section className={`${styles.panel} ${styles.resultsSection}`}>
-          <h4 className={styles.panelTitle}>Estrategia procesal complementaria</h4>
-          <ProceduralStrategy
-            nextSteps={normalized.procedural_strategy.next_steps}
-            risks={normalized.procedural_strategy.risks}
-            missingInformation={normalized.procedural_strategy.missing_information}
-          />
+          <h4 className={styles.panelTitle}>Informacion que ayudaria a afinar la respuesta</h4>
+          {display.missingInformation.length ? (
+            <ul className={styles.strategyList}>
+              {display.missingInformation.map((item, index) => (
+                <li key={`${item}-${index}`} className={styles.strategyItem}>
+                  <p className={styles.panelText}>{item}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className={styles.emptyNote}>
+              No se reporto informacion faltante adicional para esta orientacion inicial.
+            </p>
+          )}
         </section>
 
         <section className={`${styles.panel} ${styles.resultsSection}`}>
@@ -197,15 +167,93 @@ export default function LegalQueryResults({ response, requestContext = {} }) {
           <LegalWarnings items={warnings} guard={normalized.hallucination_guard} />
         </section>
 
-        <details className={styles.disclosure}>
-          <summary className={styles.disclosureSummary}>Contexto y citas utilizadas</summary>
-          <div className={styles.disclosureBody}>
-            <RetrievedContext
-              items={normalized.retrieved_items}
-              citations={normalized.reasoning.citations_used}
-            />
-          </div>
-        </details>
+        {hasProfessionalMode ? (
+          <details className={styles.disclosure}>
+            <summary className={styles.disclosureSummary}>Ver detalle profesional</summary>
+            <div className={styles.disclosureBody}>
+              <div className={styles.resultsStack}>
+                <section className={`${styles.panel} ${styles.resultsSection}`}>
+                  <h4 className={styles.panelTitle}>Resumen profesional</h4>
+                  <p className={styles.panelText}>
+                    {professionalMode.summary || 'No se devolvio resumen profesional adicional.'}
+                  </p>
+                </section>
+
+                <section className={`${styles.panel} ${styles.resultsSection}`}>
+                  <h4 className={styles.panelTitle}>Estrategia juridica</h4>
+                  <LegalStrategy
+                    strategy={{
+                      strategic_narrative:
+                        professionalMode.strategic_narrative ||
+                        normalized.case_strategy.strategic_narrative,
+                      conflict_summary:
+                        professionalMode.conflict_summary.length
+                          ? professionalMode.conflict_summary
+                          : normalized.case_strategy.conflict_summary,
+                      recommended_actions:
+                        professionalMode.recommended_actions.length
+                          ? professionalMode.recommended_actions
+                          : normalized.case_strategy.recommended_actions,
+                      risk_analysis:
+                        professionalMode.risk_analysis.length
+                          ? professionalMode.risk_analysis
+                          : normalized.case_strategy.risk_analysis,
+                      procedural_focus:
+                        professionalMode.procedural_focus.length
+                          ? professionalMode.procedural_focus
+                          : normalized.case_strategy.procedural_focus,
+                      secondary_domain_notes:
+                        normalized.case_strategy.secondary_domain_notes,
+                      critical_questions: normalized.case_strategy.critical_questions,
+                    }}
+                    caseDomain={normalized.case_domain}
+                    caseDomains={normalized.case_domains}
+                  />
+                </section>
+
+                <section className={`${styles.panel} ${styles.resultsSection}`}>
+                  <h4 className={styles.panelTitle}>Faltantes y foco procesal</h4>
+                  <ProceduralStrategy
+                    nextSteps={
+                      professionalMode.recommended_actions.length
+                        ? professionalMode.recommended_actions
+                        : normalized.procedural_strategy.next_steps
+                    }
+                    risks={
+                      professionalMode.risk_analysis.length
+                        ? professionalMode.risk_analysis
+                        : normalized.procedural_strategy.risks
+                    }
+                    missingInformation={[
+                      ...professionalMode.critical_missing_information,
+                      ...professionalMode.ordinary_missing_information,
+                    ]}
+                  />
+                </section>
+
+                <section className={`${styles.panel} ${styles.resultsSection}`}>
+                  <h4 className={styles.panelTitle}>Normativa relevante</h4>
+                  <NormativeFoundations
+                    items={
+                      professionalMode.normative_focus.length
+                        ? professionalMode.normative_focus
+                        : normalized.normative_reasoning.applied_rules
+                    }
+                  />
+                </section>
+              </div>
+            </div>
+          </details>
+        ) : null}
+
+        {display.rawResponseText ? (
+          <details className={styles.disclosure}>
+            <summary className={styles.disclosureSummary}>Ver respuesta completa original</summary>
+            <div className={styles.disclosureBody}>
+              <p className={styles.panelText}>{display.rawResponseText}</p>
+            </div>
+          </details>
+        ) : null}
       </div>
     </article>
   );

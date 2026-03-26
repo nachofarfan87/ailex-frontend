@@ -14,6 +14,28 @@ function pickFirstText(...values) {
   return '';
 }
 
+function normalizeOutputMode(mode) {
+  const safeMode = asObject(mode);
+  return {
+    title: String(safeMode.title || ''),
+    summary: String(safeMode.summary || ''),
+    quick_start: String(safeMode.quick_start || ''),
+    what_this_means: String(safeMode.what_this_means || ''),
+    next_steps: asArray(safeMode.next_steps),
+    key_risks: asArray(safeMode.key_risks),
+    missing_information: asArray(safeMode.missing_information),
+    confidence_explained: String(safeMode.confidence_explained || ''),
+    strategic_narrative: String(safeMode.strategic_narrative || ''),
+    conflict_summary: asArray(safeMode.conflict_summary),
+    recommended_actions: asArray(safeMode.recommended_actions),
+    risk_analysis: asArray(safeMode.risk_analysis),
+    procedural_focus: asArray(safeMode.procedural_focus),
+    critical_missing_information: asArray(safeMode.critical_missing_information),
+    ordinary_missing_information: asArray(safeMode.ordinary_missing_information),
+    normative_focus: asArray(safeMode.normative_focus),
+  };
+}
+
 export function normalizeLegalQueryResponse(payload = {}) {
   const safePayload = asObject(payload);
   const reasoning = asObject(safePayload.reasoning);
@@ -24,6 +46,7 @@ export function normalizeLegalQueryResponse(payload = {}) {
   const caseProfile = asObject(safePayload.case_profile || legalStrategy.case_profile);
   const caseStrategy = asObject(safePayload.case_strategy || legalStrategy.case_strategy);
   const normativeReasoning = asObject(safePayload.normative_reasoning);
+  const outputModes = asObject(safePayload.output_modes);
 
   const caseDomain = String(
     safePayload.case_domain || legalStrategy.case_domain || caseProfile.case_domain || '',
@@ -103,6 +126,12 @@ export function normalizeLegalQueryResponse(payload = {}) {
       critical_questions: asArray(caseStrategy.critical_questions),
     },
     legal_strategy: legalStrategy,
+    output_modes: {
+      user: normalizeOutputMode(outputModes.user),
+      professional: normalizeOutputMode(outputModes.professional),
+    },
+    response_text: String(safePayload.response_text || ''),
+    quick_start: String(safePayload.quick_start || ''),
     visible_summary: summaryText,
     generated_document:
       typeof safePayload.generated_document === 'string' ? safePayload.generated_document : '',
