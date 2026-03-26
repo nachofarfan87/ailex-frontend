@@ -58,7 +58,7 @@ export default function LegalQueryForm({
           onChange={(event) => setQuery(event.target.value)}
           placeholder={
             disabled
-              ? 'Inicia sesion para usar el asistente juridico.'
+              ? 'Limite de prueba alcanzado. Inicia sesion para seguir consultando.'
               : 'Ej.: plazo para contestar demanda, art 34 cpcc jujuy, garantia de defensa en juicio...'
           }
           disabled={locked}

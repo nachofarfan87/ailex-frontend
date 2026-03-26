@@ -42,6 +42,27 @@ import {
 
 const USE_EXPEDIENT_CONTEXT = false;
 
+const GUEST_QUERY_LIMIT = 5;
+const GUEST_QUERY_STORAGE_KEY = 'ailex_guest_query_count';
+
+function getGuestQueryCount() {
+  try {
+    return Number(localStorage.getItem(GUEST_QUERY_STORAGE_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function incrementGuestQueryCount() {
+  try {
+    const next = getGuestQueryCount() + 1;
+    localStorage.setItem(GUEST_QUERY_STORAGE_KEY, String(next));
+    return next;
+  } catch {
+    return 0;
+  }
+}
+
 const SUGGESTIONS = [
   'plazo para contestar demanda',
   'art 34 cpcc jujuy',
@@ -445,7 +466,7 @@ export default function ChatPage() {
       setWorkContext(readLegalQueryContext());
 
       if (!storedSession.is_authenticated) {
-        setStatus('Inicia sesion para usar el asistente juridico.');
+        setStatus('Puedes probar AILEX sin iniciar sesion. El acceso libre esta limitado para la beta.');
         return;
       }
 
@@ -536,7 +557,7 @@ export default function ChatPage() {
     startTransition(() => {
       setTurns([]);
     });
-    setStatus('Sesion cerrada. Inicia sesion para usar el asistente juridico.');
+    setStatus('Sesion cerrada. Puedes seguir consultando como invitado.');
     setActiveUtility('account');
   }
 
@@ -642,8 +663,8 @@ export default function ChatPage() {
   async function handleSubmit(payload) {
     if (loading) return false;
 
-    if (!isAuthenticated) {
-      setStatus('Inicia sesion para usar el asistente juridico.');
+    if (!isAuthenticated && getGuestQueryCount() >= GUEST_QUERY_LIMIT) {
+      setStatus('Has alcanzado el limite de consultas de prueba. Inicia sesion para seguir usando AILEX.');
       setActiveUtility('account');
       return false;
     }
@@ -708,6 +729,10 @@ export default function ChatPage() {
           },
         ]);
       });
+
+      if (!isAuthenticated) {
+        incrementGuestQueryCount();
+      }
 
       if (savedConsultaId) {
         setWorkspaceBusy(true);
@@ -813,9 +838,13 @@ export default function ChatPage() {
   const isAuthDrawerOpen = activeUtility === 'account';
   const sessionButtonLabel = isAuthenticated ? 'Sesion activa' : 'Ingresar';
 
-  const formStatus = !isAuthenticated && !authBusy
-    ? 'Inicia sesion para usar el asistente juridico.'
-    : '';
+  const guestQueryCount = !isAuthenticated ? getGuestQueryCount() : 0;
+  const guestLimitReached = !isAuthenticated && guestQueryCount >= GUEST_QUERY_LIMIT;
+  const formStatus = guestLimitReached
+    ? 'Has alcanzado el limite de consultas de prueba. Inicia sesion para seguir usando AILEX.'
+    : !isAuthenticated && !authBusy
+      ? `Beta abierta — ${GUEST_QUERY_LIMIT - guestQueryCount} consultas restantes. Inicia sesion para acceso completo.`
+      : '';
 
   function toggleUtility(panel) {
     setActiveUtility((previous) => (previous === panel ? '' : panel));
@@ -924,10 +953,10 @@ export default function ChatPage() {
                 context={workContext}
                 onContextChange={handleContextChange}
                 loading={loading}
-                disabled={!isAuthenticated}
+                disabled={guestLimitReached}
                 centered
                 status={formStatus}
-                suggestions={isAuthenticated ? SUGGESTIONS : []}
+                suggestions={SUGGESTIONS}
                 showContext={false}
               />
             </div>
@@ -967,7 +996,7 @@ export default function ChatPage() {
                   context={workContext}
                   onContextChange={handleContextChange}
                   loading={loading}
-                  disabled={!isAuthenticated}
+                  disabled={guestLimitReached}
                   status={formStatus}
                   suggestions={[]}
                   onResetConversation={resetConversation}

@@ -97,9 +97,10 @@ export function workflowNotification(payload) {
 }
 
 export function legalQuery(payload) {
+  const token = getStoredAccessToken();
   return request('/api/legal-query', {
     method: 'POST',
-    auth: true,
+    auth: Boolean(token),
     body: JSON.stringify(payload),
   });
 }
@@ -346,6 +347,66 @@ export function getJurisdictionProfile() {
 
 export function getPolicies() {
   return request('/api/config/policies');
+}
+
+export function getLearningObservabilityOverview(filters = {}) {
+  return request(`/api/learning/observability/overview${buildQuery(filters)}`, {
+    auth: true,
+  });
+}
+
+export function getLearningObservabilitySignatures(filters = {}) {
+  return request(`/api/learning/observability/signatures${buildQuery(filters)}`, {
+    auth: true,
+  });
+}
+
+export function getLearningObservabilityFamilies(filters = {}) {
+  return request(`/api/learning/observability/families${buildQuery(filters)}`, {
+    auth: true,
+  });
+}
+
+export function getLearningObservabilityEvents(filters = {}) {
+  return request(`/api/learning/observability/events${buildQuery(filters)}`, {
+    auth: true,
+  });
+}
+
+export function getLearningObservabilityTimeline(filters = {}) {
+  return request(`/api/learning/observability/timeline${buildQuery(filters)}`, {
+    auth: true,
+  });
+}
+
+export function getLearningObservabilityDrift(filters = {}) {
+  return request(`/api/learning/observability/drift${buildQuery(filters)}`, {
+    auth: true,
+  });
+}
+
+export function getLearningObservabilityDecisions(filters = {}) {
+  return request(`/api/learning/observability/decisions${buildQuery(filters)}`, {
+    auth: true,
+  });
+}
+
+export function getLearningObservabilityTopPatterns(filters = {}) {
+  return request(`/api/learning/observability/top-patterns${buildQuery(filters)}`, {
+    auth: true,
+  });
+}
+
+export function getLearningObservabilityInsights(filters = {}) {
+  return request(`/api/learning/observability/insights${buildQuery(filters)}`, {
+    auth: true,
+  });
+}
+
+export function getBetaDashboard() {
+  return request('/api/monitoring/beta-dashboard', {
+    auth: true,
+  });
 }
 
 export function detectIntent(text, options = {}) {
