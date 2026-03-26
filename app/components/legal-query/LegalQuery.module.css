@@ -833,6 +833,503 @@
   padding: 0 16px 16px;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   Hero answer — protagonist block
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.heroAnswer {
+  display: grid;
+  gap: 16px;
+  padding: 20px 22px 22px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012)),
+    rgba(14, 18, 25, 0.98);
+}
+
+.heroAnswerSecondary {
+  gap: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.022), rgba(255, 255, 255, 0.008)),
+    rgba(12, 16, 23, 0.96);
+}
+
+.heroAnswerHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.heroAnswerEyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9ca6b8;
+}
+
+.heroAnswerText {
+  margin: 0;
+  font-size: 1.06rem;
+  line-height: 1.82;
+  color: var(--text-primary);
+  max-width: 84ch;
+}
+
+.heroQuickStart {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(200, 160, 98, 0.07);
+  border: 1px solid rgba(200, 160, 98, 0.14);
+}
+
+.heroQuickStartLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #c8a062;
+}
+
+.heroQuickStartText {
+  margin: 0;
+  font-size: 0.96rem;
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
+.conversationHero {
+  display: grid;
+  gap: 16px;
+  padding: 20px 22px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.conversationHeroClarification {
+  background:
+    linear-gradient(180deg, rgba(110, 140, 255, 0.08), rgba(255, 255, 255, 0.01)),
+    rgba(12, 16, 23, 0.98);
+  border-color: rgba(110, 140, 255, 0.16);
+}
+
+.conversationHeroAdvice {
+  background:
+    linear-gradient(180deg, rgba(200, 160, 98, 0.05), rgba(255, 255, 255, 0.01)),
+    rgba(12, 16, 23, 0.98);
+  border-color: rgba(200, 160, 98, 0.16);
+}
+
+.conversationHeroHead,
+.conversationHeroLead {
+  display: grid;
+  gap: 8px;
+}
+
+.conversationStatusAlert,
+.conversationStatusOk,
+.conversationPill,
+.conversationPillAccent,
+.conversationPillWarning,
+.conversationOptionChip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  width: fit-content;
+}
+
+.conversationStatusAlert {
+  color: #d8e0ff;
+  background: rgba(110, 140, 255, 0.15);
+  border: 1px solid rgba(110, 140, 255, 0.25);
+}
+
+.conversationStatusOk {
+  color: #f5deaf;
+  background: rgba(200, 160, 98, 0.14);
+  border: 1px solid rgba(200, 160, 98, 0.22);
+}
+
+.conversationHeroTitle {
+  margin: 0;
+  font-size: 1.24rem;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.conversationHeroDescription {
+  margin: 0;
+  max-width: 70ch;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+
+.conversationQuestionCard,
+.conversationAdviceCard {
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.conversationQuestionLabel,
+.conversationMiniTitle {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9ca6b8;
+}
+
+.conversationQuestionText {
+  margin: 0;
+  font-size: 1.12rem;
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
+.conversationAdviceText {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.76;
+  color: var(--text-primary);
+}
+
+.conversationOptionRow,
+.conversationPillRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.conversationOptionChip {
+  appearance: none;
+  color: #d8e0ff;
+  background: rgba(110, 140, 255, 0.1);
+  border: 1px solid rgba(110, 140, 255, 0.18);
+  font: inherit;
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+.conversationOptionChip:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(110, 140, 255, 0.32);
+  background: rgba(110, 140, 255, 0.14);
+}
+
+.conversationOptionChip:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.conversationOptionChipActive {
+  border-color: rgba(200, 160, 98, 0.3);
+  background: rgba(200, 160, 98, 0.14);
+  box-shadow: 0 10px 24px rgba(4, 7, 12, 0.18);
+}
+
+.conversationMiniSection {
+  display: grid;
+  gap: 8px;
+}
+
+.progressContainer {
+  display: grid;
+  gap: 10px;
+  padding: 12px 0 4px;
+}
+
+.progressHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.progressTitle {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #b7c0cf;
+}
+
+.progressBar {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(200, 160, 98, 0.92), rgba(110, 140, 255, 0.9));
+  transition: width 220ms ease;
+}
+
+.progressList {
+  display: grid;
+  gap: 6px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.progressItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.progressDone {
+  color: #dfe6d7;
+}
+
+.progressPending {
+  color: #cfd7e5;
+}
+
+.progressIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.conversationNextStep {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+
+.conversationNextStepLabel {
+  color: #a4afc2;
+  font-weight: 700;
+}
+
+.conversationPill {
+  color: #d5dde9;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.conversationPillAccent {
+  color: #f1e1b8;
+  background: rgba(200, 160, 98, 0.11);
+  border: 1px solid rgba(200, 160, 98, 0.18);
+}
+
+.conversationPillWarning {
+  color: #ffc9c2;
+  background: rgba(213, 114, 103, 0.12);
+  border: 1px solid rgba(213, 114, 103, 0.18);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Secondary grid — clarifications / steps / risks
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.secondaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.secondaryCard {
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.006)),
+    rgba(12, 16, 23, 0.96);
+}
+
+.secondaryCardRisk {
+  border-color: rgba(213, 114, 103, 0.14);
+  background:
+    linear-gradient(180deg, rgba(213, 114, 103, 0.04), rgba(255, 255, 255, 0.006)),
+    rgba(12, 16, 23, 0.96);
+}
+
+.secondaryCardTitle {
+  margin: 0;
+  font-size: 0.73rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #a4afc2;
+}
+
+/* ── Compact lists inside secondary cards ── */
+
+.compactList {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.compactItem {
+  position: relative;
+  padding-left: 14px;
+  font-size: 0.94rem;
+  line-height: 1.68;
+  color: var(--text-secondary);
+}
+
+.compactItem::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(200, 160, 98, 0.5);
+}
+
+.secondaryCardRisk .compactItem::before {
+  background: rgba(213, 114, 103, 0.6);
+}
+
+/* ── Inline disclosure (overflow items) ── */
+
+.inlineDisclosure {
+  margin: 0;
+  border: none;
+  background: none;
+}
+
+.inlineDisclosureSummary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #8d97aa;
+  padding: 2px 0;
+}
+
+.inlineDisclosureSummary::-webkit-details-marker {
+  display: none;
+}
+
+.inlineDisclosureSummary:hover {
+  color: #c8a062;
+}
+
+/* ── Normative compact list ── */
+
+.normativeCompactList {
+  display: grid;
+  gap: 6px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.normativeCompactItem {
+  position: relative;
+  padding-left: 14px;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.normativeCompactItem::before {
+  content: '§';
+  position: absolute;
+  left: 0;
+  color: rgba(200, 160, 98, 0.5);
+  font-weight: 700;
+}
+
+.normativeCompactMore {
+  font-size: 0.82rem;
+  font-style: italic;
+  color: #8d97aa;
+  padding-left: 14px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Conversational block — follow-up question + options
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.conversationalBlock {
+  display: grid;
+  gap: 12px;
+  padding: 18px 20px;
+  border: 1px solid rgba(110, 140, 255, 0.16);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(110, 140, 255, 0.05), rgba(255, 255, 255, 0.006)),
+    rgba(12, 16, 23, 0.96);
+}
+
+.conversationalQuestion {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+.conversationalOptions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.conversationalOption {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(110, 140, 255, 0.2);
+  background: rgba(110, 140, 255, 0.08);
+  color: #cfd8f8;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.conversationalNextStep {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.conversationalNextStepLabel {
+  font-weight: 700;
+  color: #a4afc2;
+  letter-spacing: 0.04em;
+}
+
 @media (min-width: 1180px) {
   .chatShell {
     grid-template-columns: minmax(0, 1fr);
@@ -882,6 +1379,7 @@
   .fieldGridCompact,
   .primaryResultGrid,
   .resultsGrid,
+  .secondaryGrid,
   .expedienteContextGrid {
     grid-template-columns: minmax(0, 1fr);
   }

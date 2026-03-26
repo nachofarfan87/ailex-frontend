@@ -18,6 +18,7 @@ import {
   listExpedientes,
   loginAuth,
   registerAuth,
+  trackSessionAnalyticsEvent,
   updateRemoteExpediente,
 } from './lib/api';
 import { clearAuthSession, readAuthSession, writeAuthSession } from './lib/authSession';
@@ -42,9 +43,24 @@ import {
 } from './lib/legalQueryPreferences';
 
 const USE_EXPEDIENT_CONTEXT = false;
-
 const GUEST_QUERY_LIMIT = 5;
 const GUEST_QUERY_STORAGE_KEY = 'ailex_guest_query_count';
+const SUGGESTIONS = [
+  'plazo para contestar demanda',
+  'art 34 cpcc jujuy',
+  'garantia de defensa en juicio',
+  'buena fe contractual',
+  'despido indemnizacion trabajador',
+];
+const EMPTY_SESSION = { access_token: '', token_type: 'bearer', user: null, is_authenticated: false };
+const EMPTY_WORKSPACE = { expedientes: [], active_expediente_id: '', entries: [] };
+
+function createClientSessionId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `sess-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 function getGuestQueryCount() {
   try {
@@ -64,46 +80,13 @@ function incrementGuestQueryCount() {
   }
 }
 
-const SUGGESTIONS = [
-  'plazo para contestar demanda',
-  'art 34 cpcc jujuy',
-  'garantia de defensa en juicio',
-  'buena fe contractual',
-  'despido indemnizacion trabajador',
-];
-
-const EMPTY_SESSION = {
-  access_token: '',
-  token_type: 'bearer',
-  user: null,
-  is_authenticated: false,
-};
-
-const EMPTY_WORKSPACE = {
-  expedientes: [],
-  active_expediente_id: '',
-  entries: [],
-};
-
 function safeParseExpedientePartes(partesJson) {
   const raw = String(partesJson || '').trim();
-  if (!raw) {
-    return null;
-  }
-
+  if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length === 0) {
-      return null;
-    }
-    if (
-      parsed &&
-      typeof parsed === 'object' &&
-      !Array.isArray(parsed) &&
-      Object.keys(parsed).length === 0
-    ) {
-      return null;
-    }
+    if (Array.isArray(parsed) && parsed.length === 0) return null;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && Object.keys(parsed).length === 0) return null;
     return parsed;
   } catch {
     return null;
@@ -112,12 +95,9 @@ function safeParseExpedientePartes(partesJson) {
 
 function pruneEmptyValues(value) {
   if (Array.isArray(value)) {
-    const nextItems = value
-      .map((item) => pruneEmptyValues(item))
-      .filter((item) => item !== null && item !== undefined);
+    const nextItems = value.map(pruneEmptyValues).filter((item) => item !== null && item !== undefined);
     return nextItems.length ? nextItems : null;
   }
-
   if (value && typeof value === 'object') {
     const nextObject = Object.entries(value).reduce((accumulator, [key, current]) => {
       const normalized = pruneEmptyValues(current);
@@ -129,68 +109,106 @@ function pruneEmptyValues(value) {
       ) {
         return accumulator;
       }
-
-      if (
-        normalized &&
-        typeof normalized === 'object' &&
-        !Array.isArray(normalized) &&
-        Object.keys(normalized).length === 0
-      ) {
+      if (normalized && typeof normalized === 'object' && !Array.isArray(normalized) && Object.keys(normalized).length === 0) {
         return accumulator;
       }
-
       accumulator[key] = normalized;
       return accumulator;
     }, {});
-
     return Object.keys(nextObject).length ? nextObject : null;
   }
-
   if (typeof value === 'string') {
     const trimmed = value.trim();
     return trimmed ? trimmed : null;
   }
-
   return value ?? null;
 }
 
 function buildExpedienteContextPayload(expediente) {
-  if (!expediente || expediente.is_default) {
-    return { facts: {}, metadata: {} };
-  }
-
+  if (!expediente || expediente.is_default) return { facts: {}, metadata: {} };
   const partes = safeParseExpedientePartes(expediente.partes_json);
+  return {
+    facts:
+      pruneEmptyValues({
+        expediente: {
+          caratula: expediente.caratula,
+          numero: expediente.numero,
+          partes,
+          hechos_relevantes: expediente.hechos_relevantes,
+          pretension_principal: expediente.pretension_principal,
+        },
+      }) || {},
+    metadata:
+      pruneEmptyValues({
+        expediente_context: {
+          expediente_id: expediente.id,
+          titulo: expediente.name,
+          jurisdiccion: expediente.jurisdiction,
+          materia: expediente.materia || expediente.forum,
+          juzgado: expediente.juzgado,
+          tipo_caso: expediente.tipo_caso,
+          subtipo_caso: expediente.subtipo_caso,
+          estado_procesal: expediente.estado_procesal,
+          riesgos_clave: expediente.riesgos_clave,
+          estrategia_base: expediente.estrategia_base,
+          proxima_accion_sugerida: expediente.proxima_accion_sugerida,
+        },
+      }) || {},
+  };
+}
 
-  const facts = pruneEmptyValues({
-    expediente: {
-      caratula: expediente.caratula,
-      numero: expediente.numero,
-      partes,
-      hechos_relevantes: expediente.hechos_relevantes,
-      pretension_principal: expediente.pretension_principal,
-    },
+function dedupeTextList(items) {
+  const seen = new Set();
+  return (Array.isArray(items) ? items : []).filter((item) => {
+    const text = String(item || '').trim();
+    if (!text) return false;
+    const key = text.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
+}
 
-  const metadata = pruneEmptyValues({
-    expediente_context: {
-      expediente_id: expediente.id,
-      titulo: expediente.name,
-      jurisdiccion: expediente.jurisdiction,
-      materia: expediente.materia || expediente.forum,
-      juzgado: expediente.juzgado,
-      tipo_caso: expediente.tipo_caso,
-      subtipo_caso: expediente.subtipo_caso,
-      estado_procesal: expediente.estado_procesal,
-      riesgos_clave: expediente.riesgos_clave,
-      estrategia_base: expediente.estrategia_base,
-      proxima_accion_sugerida: expediente.proxima_accion_sugerida,
-    },
-  });
+function buildClarificationContext(turns) {
+  const lastAssistantTurn = [...turns].reverse().find((turn) => turn.role === 'assistant' && turn.response);
+  if (!lastAssistantTurn) return null;
+
+  const response = lastAssistantTurn.response || {};
+  const conversational = response.conversational || {};
+  if (!conversational.should_ask_first) return null;
+
+  const previousContext = lastAssistantTurn.requestContext?.metadata?.clarification_context || {};
+  const question = String(conversational.question || '').trim();
+  const baseQuery = String(previousContext.base_query || lastAssistantTurn.requestContext?.query || response.query || '').trim();
 
   return {
-    facts: facts || {},
-    metadata: metadata || {},
+    base_query: baseQuery,
+    case_domain: String(response.case_domain || previousContext.case_domain || '').trim(),
+    last_question: question,
+    asked_questions: dedupeTextList([...(Array.isArray(previousContext.asked_questions) ? previousContext.asked_questions : []), question]),
+    known_facts:
+      conversational.known_facts && typeof conversational.known_facts === 'object' && !Array.isArray(conversational.known_facts)
+        ? conversational.known_facts
+        : previousContext.known_facts || {},
   };
+}
+
+function normalizeQuickReplyText(optionText, turns) {
+  const option = String(optionText || '').trim();
+  if (!option) return '';
+  const normalizedOption = option.toLowerCase();
+  const lastAssistantTurn = [...turns].reverse().find((turn) => turn.role === 'assistant' && turn.response);
+  const question = String(lastAssistantTurn?.response?.conversational?.question || '').trim().toLowerCase();
+
+  if (normalizedOption === 'unilateral') return 'Es unilateral';
+  if (normalizedOption === 'conjunto') return 'Es conjunto';
+  if (normalizedOption === 'de comun acuerdo' || normalizedOption === 'de común acuerdo') return 'Es de comun acuerdo';
+  if ((normalizedOption === 'si' || normalizedOption === 'sí') && question.includes('hijos')) return 'Si, hay hijos';
+  if (normalizedOption === 'no' && question.includes('hijos')) return 'No, no hay hijos';
+  if ((normalizedOption === 'si' || normalizedOption === 'sí') && question.includes('urgencia')) return 'Si, hay urgencia';
+  if (normalizedOption === 'no' && question.includes('urgencia')) return 'No hay urgencia';
+  if (normalizedOption === 'actor' || normalizedOption === 'demandado') return `Soy ${normalizedOption}`;
+  return option;
 }
 
 function UserMessage({ query, metadata }) {
@@ -226,12 +244,18 @@ function AssistantErrorMessage({ error }) {
   );
 }
 
-function AssistantResponseMessage({ response, requestContext }) {
+function AssistantResponseMessage({ response, requestContext, onQuickReply, activeQuickReply, quickReplyDisabled }) {
   return (
     <div className="message message--assistant">
       <div className="message__avatar">AI</div>
       <div className="message__bubble">
-        <LegalQueryResults response={response} requestContext={requestContext} />
+        <LegalQueryResults
+          response={response}
+          requestContext={requestContext}
+          onQuickReply={onQuickReply}
+          activeQuickReply={activeQuickReply}
+          quickReplyDisabled={quickReplyDisabled}
+        />
       </div>
     </div>
   );
@@ -254,7 +278,6 @@ function WorkspaceCard({ response, index }) {
   const warnings = collectLegalWarnings(response);
   const display = adaptLegalResultForDisplay(response);
   const topFoundation = response.reasoning.normative_foundations[0];
-
   return (
     <article className={styles.workspaceCard}>
       <div className={styles.workspaceHead}>
@@ -262,25 +285,17 @@ function WorkspaceCard({ response, index }) {
           <span className={styles.eyebrow}>Consulta {index + 1}</span>
           <h3 className={styles.workspaceTitle}>{response.query || 'Consulta juridica'}</h3>
         </div>
-        <span className={`${styles.pill} ${styles.pillStrong}`}>
-          {formatConfidence(response.confidence)}
-        </span>
+        <span className={`${styles.pill} ${styles.pillStrong}`}>{formatConfidence(response.confidence)}</span>
       </div>
-
       <ul className={styles.workspaceList}>
         <li className={styles.strategyItem}>
           <p className={styles.panelText}>
             {compactText(
-              display.quickStart ||
-                display.summary ||
-                response.reasoning.short_answer ||
-                response.reasoning.case_analysis ||
-                'Respuesta breve no informada.',
+              display.quickStart || display.summary || response.reasoning.short_answer || response.reasoning.case_analysis || 'Respuesta breve no informada.',
               160,
             )}
           </p>
         </li>
-
         <li className={styles.strategyItem}>
           <p className={styles.panelText}>
             Fundamento principal:{' '}
@@ -288,84 +303,41 @@ function WorkspaceCard({ response, index }) {
               ? compactText(
                   typeof topFoundation === 'string'
                     ? topFoundation
-                    : topFoundation.label ||
-                        topFoundation.title ||
-                        topFoundation.titulo ||
-                        topFoundation.article ||
-                        topFoundation.source_id,
+                    : topFoundation.label || topFoundation.title || topFoundation.titulo || topFoundation.article || topFoundation.source_id,
                   96,
                 )
               : 'No informado.'}
           </p>
         </li>
-
         <li className={styles.strategyItem}>
-          <p className={styles.panelText}>
-            Advertencias: {warnings.length ? warnings.length : 'sin alertas'}.
-          </p>
+          <p className={styles.panelText}>Advertencias: {warnings.length ? warnings.length : 'sin alertas'}.</p>
         </li>
       </ul>
     </article>
   );
 }
 
-function AuthDrawer({
-  session,
-  loading,
-  authBusy,
-  visible,
-  onClose,
-  onLogin,
-  onRegister,
-  onLogout,
-}) {
-  if (!visible) {
-    return null;
-  }
-
+function AuthDrawer({ session, loading, authBusy, visible, onClose, onLogin, onRegister, onLogout }) {
+  if (!visible) return null;
   return (
     <div className={styles.drawerOverlay} onClick={onClose} role="presentation">
-      <aside
-        className={styles.authDrawer}
-        onClick={(event) => event.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Acceso a AILEX"
-      >
+      <aside className={styles.authDrawer} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="Acceso a AILEX">
         <div className={styles.authDrawerHeader}>
           <div>
             <span className={styles.eyebrow}>Cuenta</span>
-            <h3 className={styles.utilityDrawerTitle}>
-              {session.is_authenticated ? 'Sesion activa' : 'Acceso a AILEX'}
-            </h3>
+            <h3 className={styles.utilityDrawerTitle}>{session.is_authenticated ? 'Sesion activa' : 'Acceso a AILEX'}</h3>
           </div>
-          <button type="button" className={styles.secondaryButton} onClick={onClose}>
-            Cerrar
-          </button>
+          <button type="button" className={styles.secondaryButton} onClick={onClose}>Cerrar</button>
         </div>
-
         <div className={styles.authDrawerBody}>
-          <AuthPanel
-            session={session}
-            loading={loading}
-            authBusy={authBusy}
-            onLogin={onLogin}
-            onRegister={onRegister}
-            onLogout={onLogout}
-          />
+          <AuthPanel session={session} loading={loading} authBusy={authBusy} onLogin={onLogin} onRegister={onRegister} onLogout={onLogout} />
         </div>
       </aside>
     </div>
   );
 }
 
-function UtilityPanel({
-  title,
-  eyebrow,
-  description,
-  children,
-  onClose,
-}) {
+function UtilityPanel({ title, eyebrow, description, children, onClose }) {
   return (
     <aside className={styles.utilityDrawer}>
       <div className={styles.utilityDrawerHeader}>
@@ -374,9 +346,7 @@ function UtilityPanel({
           <h3 className={styles.utilityDrawerTitle}>{title}</h3>
           {description ? <p className={styles.utilityDrawerText}>{description}</p> : null}
         </div>
-        <button type="button" className={styles.secondaryButton} onClick={onClose}>
-          Cerrar
-        </button>
+        <button type="button" className={styles.secondaryButton} onClick={onClose}>Cerrar</button>
       </div>
       <div className={styles.utilityDrawerBody}>{children}</div>
     </aside>
@@ -384,10 +354,7 @@ function UtilityPanel({
 }
 
 function upsertWorkspaceEntry(previousState, nextEntry) {
-  return {
-    ...previousState,
-    entries: [nextEntry, ...previousState.entries.filter((item) => item.id !== nextEntry.id)],
-  };
+  return { ...previousState, entries: [nextEntry, ...previousState.entries.filter((item) => item.id !== nextEntry.id)] };
 }
 
 export default function ChatPage() {
@@ -402,40 +369,27 @@ export default function ChatPage() {
   const [activeHistoryId, setActiveHistoryId] = useState('');
   const [workContext, setWorkContext] = useState(DEFAULT_LEGAL_QUERY_CONTEXT);
   const [activeUtility, setActiveUtility] = useState('');
+  const [quickReplyRequest, setQuickReplyRequest] = useState(null);
+  const [activeQuickReply, setActiveQuickReply] = useState('');
+  const [currentSessionId, setCurrentSessionId] = useState(() => createClientSessionId());
 
   const deferredTurns = useDeferredValue(turns);
   const hasConversation = turns.length > 0;
   const isAuthenticated = Boolean(session.is_authenticated && session.user?.id);
   const activeExpediente = useMemo(
-    () =>
-      workspaceState.expedientes.find(
-        (item) => item.id === workspaceState.active_expediente_id,
-      ) ||
-      workspaceState.expedientes[0] ||
-      createRemoteDefaultExpediente(),
+    () => workspaceState.expedientes.find((item) => item.id === workspaceState.active_expediente_id) || workspaceState.expedientes[0] || createRemoteDefaultExpediente(),
     [workspaceState],
   );
   const activeHistoryItems = useMemo(
-    () =>
-      workspaceState.entries.filter((item) => item.expediente_id === activeExpediente.id),
+    () => workspaceState.entries.filter((item) => item.expediente_id === activeExpediente.id),
     [workspaceState.entries, activeExpediente.id],
   );
   const entryCounts = useMemo(
-    () =>
-      workspaceState.entries.reduce((accumulator, item) => {
-        const next = { ...accumulator };
-        next[item.expediente_id] = (next[item.expediente_id] || 0) + 1;
-        return next;
-      }, {}),
+    () => workspaceState.entries.reduce((accumulator, item) => ({ ...accumulator, [item.expediente_id]: (accumulator[item.expediente_id] || 0) + 1 }), {}),
     [workspaceState.entries],
   );
   const workspaceResponses = useMemo(
-    () =>
-      deferredTurns
-        .filter((turn) => turn.role === 'assistant' && turn.response)
-        .map((turn) => turn.response)
-        .slice(-3)
-        .reverse(),
+    () => deferredTurns.filter((turn) => turn.role === 'assistant' && turn.response).map((turn) => turn.response).slice(-3).reverse(),
     [deferredTurns],
   );
 
@@ -444,66 +398,40 @@ export default function ChatPage() {
   }, [turns, loading]);
 
   async function syncRemoteWorkspace(preferredActiveExpedienteId = '') {
-    const [expedientesResponse, consultasResponse] = await Promise.all([
-      listExpedientes({ limit: 100 }),
-      listConsultas({ limit: 100 }),
-    ]);
-
-    const nextWorkspace = buildRemoteWorkspace({
-      expedientes: expedientesResponse.items,
-      consultas: consultasResponse.items,
-      activeExpedienteId: preferredActiveExpedienteId,
-    });
-
+    const [expedientesResponse, consultasResponse] = await Promise.all([listExpedientes({ limit: 100 }), listConsultas({ limit: 100 })]);
+    const nextWorkspace = buildRemoteWorkspace({ expedientes: expedientesResponse.items, consultas: consultasResponse.items, activeExpedienteId: preferredActiveExpedienteId });
     setWorkspaceState(nextWorkspace);
     return nextWorkspace;
   }
 
   useEffect(() => {
     let mounted = true;
-
     async function bootstrap() {
       const storedSession = readAuthSession();
-
       if (!mounted) return;
-
       setWorkContext(readLegalQueryContext());
-
       if (!storedSession.is_authenticated) {
         setStatus('Puedes probar AILEX sin iniciar sesion. El acceso libre esta limitado para la beta.');
         return;
       }
-
       setAuthBusy(true);
-
       try {
         const user = await getCurrentUser();
         if (!mounted) return;
-
-        const nextSession = writeAuthSession({
-          ...storedSession,
-          user,
-        });
-
+        const nextSession = writeAuthSession({ ...storedSession, user });
         setSession(nextSession);
         await syncRemoteWorkspace();
-        if (mounted) {
-          setStatus('Sesion restaurada. Historial y expedientes cargados desde backend.');
-        }
+        if (mounted) setStatus('Sesion restaurada. Historial y expedientes cargados desde backend.');
       } catch {
         if (!mounted) return;
         clearAuthSession();
         setSession(EMPTY_SESSION);
         setStatus('No se pudo restaurar la sesion. Inicia sesion nuevamente.');
       } finally {
-        if (mounted) {
-          setAuthBusy(false);
-        }
+        if (mounted) setAuthBusy(false);
       }
     }
-
     bootstrap();
-
     return () => {
       mounted = false;
     };
@@ -517,7 +445,6 @@ export default function ChatPage() {
 
   async function handleLogin(credentials) {
     setAuthBusy(true);
-
     try {
       const payload = await loginAuth(credentials);
       const nextSession = writeAuthSession(payload);
@@ -536,7 +463,6 @@ export default function ChatPage() {
 
   async function handleRegister(credentials) {
     setAuthBusy(true);
-
     try {
       const payload = await registerAuth(credentials);
       const nextSession = writeAuthSession(payload);
@@ -558,30 +484,18 @@ export default function ChatPage() {
     setSession(EMPTY_SESSION);
     setWorkspaceState(EMPTY_WORKSPACE);
     setActiveHistoryId('');
-    startTransition(() => {
-      setTurns([]);
-    });
+    startTransition(() => setTurns([]));
     setStatus('Sesion cerrada. Puedes seguir consultando como invitado.');
     setActiveUtility('account');
   }
 
   async function handleCreateExpediente(name) {
     if (!isAuthenticated) return;
-
     setWorkspaceBusy(true);
-
     try {
       const normalizedName = String(name || '').trim();
-      if (!normalizedName) {
-        return;
-      }
-
-      const created = await createRemoteExpediente({
-        titulo: normalizedName,
-        jurisdiccion: workContext.jurisdiction,
-        materia: workContext.forum,
-        partes_json: '[]',
-      });
+      if (!normalizedName) return;
+      const created = await createRemoteExpediente({ titulo: normalizedName, jurisdiccion: workContext.jurisdiction, materia: workContext.forum, partes_json: '[]' });
       await syncRemoteWorkspace(created.id);
       setStatus('Expediente creado en backend.');
     } catch (error) {
@@ -593,29 +507,18 @@ export default function ChatPage() {
 
   async function handleSelectExpediente(expedienteId) {
     setActiveHistoryId('');
-
     if (!isAuthenticated) return;
-
-    setWorkspaceState((previous) => ({
-      ...previous,
-      active_expediente_id: expedienteId,
-    }));
+    setWorkspaceState((previous) => ({ ...previous, active_expediente_id: expedienteId }));
     setStatus('Expediente activo actualizado.');
   }
 
   async function handleRenameExpediente(expedienteId, name) {
     const cleanName = String(name || '').trim();
     if (!cleanName || !isAuthenticated) return;
-
     setWorkspaceBusy(true);
-
     try {
       await updateRemoteExpediente(expedienteId, { titulo: cleanName });
-      await syncRemoteWorkspace(
-        activeExpediente.id === expedienteId
-          ? expedienteId
-          : workspaceState.active_expediente_id,
-      );
+      await syncRemoteWorkspace(activeExpediente.id === expedienteId ? expedienteId : workspaceState.active_expediente_id);
       setStatus('Expediente renombrado.');
     } catch (error) {
       setStatus(error.message || 'No se pudo renombrar el expediente.');
@@ -626,9 +529,7 @@ export default function ChatPage() {
 
   async function handleUpdateExpediente(expedienteId, fields) {
     if (!isAuthenticated || !expedienteId) return;
-
     setWorkspaceBusy(true);
-
     try {
       await updateRemoteExpediente(expedienteId, fields);
       await syncRemoteWorkspace(expedienteId);
@@ -642,17 +543,10 @@ export default function ChatPage() {
 
   async function handleDeleteExpediente(expedienteId) {
     if (!isAuthenticated) return;
-
     setWorkspaceBusy(true);
-
     try {
-      const affectedEntries = workspaceState.entries.filter(
-        (item) => item.expediente_id === expedienteId,
-      );
-
-      await Promise.all(
-        affectedEntries.map((item) => assignConsultaExpediente(item.id, null)),
-      );
+      const affectedEntries = workspaceState.entries.filter((item) => item.expediente_id === expedienteId);
+      await Promise.all(affectedEntries.map((item) => assignConsultaExpediente(item.id, null)));
       await deleteRemoteExpediente(expedienteId);
       await syncRemoteWorkspace(REMOTE_DEFAULT_EXPEDIENTE_ID);
       setActiveHistoryId('');
@@ -666,7 +560,6 @@ export default function ChatPage() {
 
   async function handleSubmit(payload) {
     if (loading) return false;
-
     if (!isAuthenticated && getGuestQueryCount() >= GUEST_QUERY_LIMIT) {
       setStatus('Has alcanzado el limite de consultas de prueba. Inicia sesion para seguir usando AILEX.');
       setActiveUtility('account');
@@ -674,44 +567,34 @@ export default function ChatPage() {
     }
 
     const expedienteContext = buildExpedienteContextPayload(activeExpediente);
+    const clarificationContext = buildClarificationContext(turns);
     const effectivePayload = {
       ...payload,
       jurisdiction: workContext.jurisdiction,
       forum: workContext.forum,
       document_mode: workContext.document_mode,
       top_k: workContext.top_k,
-      facts: USE_EXPEDIENT_CONTEXT
-        ? {
-            ...(payload.facts || {}),
-            ...(expedienteContext.facts || {}),
-          }
-        : {
-            ...(payload.facts || {}),
-          },
+      facts: USE_EXPEDIENT_CONTEXT ? { ...(payload.facts || {}), ...(expedienteContext.facts || {}) } : { ...(payload.facts || {}) },
       metadata: USE_EXPEDIENT_CONTEXT
-        ? {
-            ...(payload.metadata || {}),
-            ...(expedienteContext.metadata || {}),
-          }
-        : {
-            ...(payload.metadata || {}),
-          },
-    };
-
-    const userTurn = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      query: effectivePayload.query,
-      metadata: {
-        jurisdiction: effectivePayload.jurisdiction,
-        forum: effectivePayload.forum,
-        document_mode: effectivePayload.document_mode,
-        top_k: effectivePayload.top_k,
-      },
+        ? { ...(payload.metadata || {}), ...(expedienteContext.metadata || {}), ...(clarificationContext ? { clarification_context: clarificationContext } : {}), session_id: currentSessionId }
+        : { ...(payload.metadata || {}), ...(clarificationContext ? { clarification_context: clarificationContext } : {}), session_id: currentSessionId },
     };
 
     startTransition(() => {
-      setTurns((previous) => [...previous, userTurn]);
+      setTurns((previous) => [
+        ...previous,
+        {
+          id: `user-${Date.now()}`,
+          role: 'user',
+          query: effectivePayload.query,
+          metadata: {
+            jurisdiction: effectivePayload.jurisdiction,
+            forum: effectivePayload.forum,
+            document_mode: effectivePayload.document_mode,
+            top_k: effectivePayload.top_k,
+          },
+        },
+      ]);
     });
 
     setLoading(true);
@@ -721,33 +604,22 @@ export default function ChatPage() {
       const rawResponse = await legalQuery(effectivePayload);
       const response = normalizeLegalQueryResponse(rawResponse);
       const savedConsultaId = rawResponse.saved_consulta_id || '';
+      setCurrentSessionId(String(rawResponse.session_id || currentSessionId));
 
       startTransition(() => {
         setTurns((previous) => [
           ...previous,
-          {
-            id: `assistant-${Date.now()}`,
-            role: 'assistant',
-            response,
-            requestContext: effectivePayload,
-          },
+          { id: `assistant-${Date.now()}`, role: 'assistant', response, requestContext: effectivePayload },
         ]);
       });
 
-      if (!isAuthenticated) {
-        incrementGuestQueryCount();
-      }
+      if (!isAuthenticated) incrementGuestQueryCount();
 
       if (savedConsultaId) {
         setWorkspaceBusy(true);
-
         try {
           const targetExpedienteId = resolveRemoteExpedienteId(activeExpediente.id);
-
-          if (targetExpedienteId) {
-            await assignConsultaExpediente(savedConsultaId, targetExpedienteId);
-          }
-
+          if (targetExpedienteId) await assignConsultaExpediente(savedConsultaId, targetExpedienteId);
           await syncRemoteWorkspace(workspaceState.active_expediente_id);
           setActiveHistoryId(savedConsultaId);
         } catch {
@@ -757,78 +629,97 @@ export default function ChatPage() {
         }
       }
 
-      if (response.is_empty) {
-        setStatus('Respuesta vacia del backend. Revisar consulta o disponibilidad de datos.');
-      } else if (response.is_partial) {
-        setStatus('Respuesta parcial recibida. Se mostraron solo los campos disponibles.');
-      } else {
-        setStatus(`Consulta guardada en backend dentro de ${activeExpediente.name}.`);
-      }
+      if (response.is_empty) setStatus('Respuesta vacia del backend. Revisar consulta o disponibilidad de datos.');
+      else if (response.is_partial) setStatus('Respuesta parcial recibida. Se mostraron solo los campos disponibles.');
+      else setStatus(`Consulta guardada en backend dentro de ${activeExpediente.name}.`);
 
       return true;
     } catch (error) {
       startTransition(() => {
         setTurns((previous) => [
           ...previous,
-          {
-            id: `assistant-error-${Date.now()}`,
-            role: 'assistant',
-            error: error.message || 'Error al consultar el backend.',
-          },
+          { id: `assistant-error-${Date.now()}`, role: 'assistant', error: error.message || 'Error al consultar el backend.' },
         ]);
       });
       setStatus('No se pudo completar la consulta juridica.');
       return false;
     } finally {
       setLoading(false);
+      setActiveQuickReply('');
     }
   }
 
-  function resetConversation() {
-    startTransition(() => {
-      setTurns([]);
+  function handleQuickReply(optionText) {
+    if (loading) return;
+    const nextText = normalizeQuickReplyText(optionText, turns);
+    if (!nextText) return;
+    void trackSessionAnalyticsEvent({
+      session_id: currentSessionId,
+      event_type: 'quick_reply_clicked',
+      payload: {
+        selected_option: String(optionText || '').trim(),
+      },
+    }).catch(() => null);
+    setActiveQuickReply(String(optionText || '').trim());
+    setQuickReplyRequest({
+      id: Date.now(),
+      text: nextText,
+      submit: true,
+      metadata: {
+        quick_reply: {
+          selected_option: String(optionText || '').trim(),
+          submitted_text: nextText,
+        },
+      },
     });
+    setStatus('Enviando aclaracion...');
+  }
+
+  function handlePrefillApplied(requestId) {
+    setQuickReplyRequest((previous) => (previous && previous.id === requestId ? null : previous));
+  }
+
+  function resetConversation() {
+    const previousSessionId = currentSessionId;
+    void trackSessionAnalyticsEvent({
+      session_id: previousSessionId,
+      event_type: 'session_reset',
+      payload: {
+        total_turns: turns.length,
+      },
+    }).catch(() => null);
+    startTransition(() => setTurns([]));
     setActiveHistoryId('');
+    setQuickReplyRequest(null);
+    setActiveQuickReply('');
+    setCurrentSessionId(createClientSessionId());
     setStatus('Conversacion reiniciada.');
   }
 
   async function restoreHistoryItem(item) {
     if (!item || !isAuthenticated) return;
-
     setWorkspaceBusy(true);
-
     try {
       const detail = await getConsulta(item.id);
       const nextItem = normalizeRemoteConsultaDetail(detail);
-      setWorkspaceState((previous) => ({
-        ...upsertWorkspaceEntry(previous, nextItem),
-        active_expediente_id: nextItem.expediente_id || REMOTE_DEFAULT_EXPEDIENTE_ID,
-      }));
-
+      const restoredSessionId = createClientSessionId();
+      setWorkspaceState((previous) => ({ ...upsertWorkspaceEntry(previous, nextItem), active_expediente_id: nextItem.expediente_id || REMOTE_DEFAULT_EXPEDIENTE_ID }));
       const restoredResponse = normalizeLegalQueryResponse(nextItem.response);
-
       startTransition(() => {
         setTurns([
-          {
-            id: `history-user-${nextItem.id}`,
-            role: 'user',
-            query: nextItem.request.query,
-            metadata: {
-              jurisdiction: nextItem.request.jurisdiction,
-              forum: nextItem.request.forum,
-              document_mode: nextItem.request.document_mode,
-              top_k: nextItem.request.top_k,
-            },
-          },
-          {
-            id: `history-assistant-${nextItem.id}`,
-            role: 'assistant',
-            response: restoredResponse,
-            requestContext: nextItem.request,
-          },
+          { id: `history-user-${nextItem.id}`, role: 'user', query: nextItem.request.query, metadata: { jurisdiction: nextItem.request.jurisdiction, forum: nextItem.request.forum, document_mode: nextItem.request.document_mode, top_k: nextItem.request.top_k } },
+          { id: `history-assistant-${nextItem.id}`, role: 'assistant', response: restoredResponse, requestContext: { ...nextItem.request, metadata: { ...(nextItem.request.metadata || {}), session_id: restoredSessionId } } },
         ]);
       });
-
+      setCurrentSessionId(restoredSessionId);
+      void trackSessionAnalyticsEvent({
+        session_id: restoredSessionId,
+        event_type: 'history_restored',
+        payload: {
+          source_consulta_id: nextItem.id,
+          source_session_id: String(nextItem.response?.session_id || '').trim(),
+        },
+      }).catch(() => null);
       setActiveHistoryId(nextItem.id);
       setStatus('Consulta restaurada desde backend.');
     } catch (error) {
@@ -841,13 +732,12 @@ export default function ChatPage() {
   const combinedBusy = loading || workspaceBusy || authBusy;
   const isAuthDrawerOpen = activeUtility === 'account';
   const sessionButtonLabel = isAuthenticated ? 'Sesion activa' : 'Ingresar';
-
   const guestQueryCount = !isAuthenticated ? getGuestQueryCount() : 0;
   const guestLimitReached = !isAuthenticated && guestQueryCount >= GUEST_QUERY_LIMIT;
   const formStatus = guestLimitReached
     ? 'Has alcanzado el limite de consultas de prueba. Inicia sesion para seguir usando AILEX.'
     : !isAuthenticated && !authBusy
-      ? `Beta abierta — ${GUEST_QUERY_LIMIT - guestQueryCount} consultas restantes. Inicia sesion para acceso completo.`
+      ? `Beta abierta - ${GUEST_QUERY_LIMIT - guestQueryCount} consultas restantes. Inicia sesion para acceso completo.`
       : '';
 
   function toggleUtility(panel) {
@@ -857,12 +747,7 @@ export default function ChatPage() {
   function renderUtilityContent() {
     if (activeUtility === 'history') {
       return (
-        <UtilityPanel
-          eyebrow="Expedientes"
-          title={activeExpediente.name || 'Carpetas de trabajo'}
-          description="Las consultas previas quedan agrupadas por expediente y pueden reabrirse desde aqui."
-          onClose={() => setActiveUtility('')}
-        >
+        <UtilityPanel eyebrow="Expedientes" title={activeExpediente.name || 'Carpetas de trabajo'} description="Las consultas previas quedan agrupadas por expediente y pueden reabrirse desde aqui." onClose={() => setActiveUtility('')}>
           <LegalQueryHistory
             expedientes={workspaceState.expedientes}
             activeExpedienteId={activeExpediente.id}
@@ -884,18 +769,9 @@ export default function ChatPage() {
 
     if (activeUtility === 'context') {
       return (
-        <UtilityPanel
-          eyebrow="Contexto"
-          title="Preferencias de trabajo"
-          description="Jurisdiccion, fuero, modo documental y recuperacion para nuevas consultas."
-          onClose={() => setActiveUtility('')}
-        >
+        <UtilityPanel eyebrow="Contexto" title="Preferencias de trabajo" description="Jurisdiccion, fuero, modo documental y recuperacion para nuevas consultas." onClose={() => setActiveUtility('')}>
           <div className={styles.secondarySurface}>
-            <LegalQueryContext
-              context={workContext}
-              onChange={handleContextChange}
-              disabled={combinedBusy}
-            />
+            <LegalQueryContext context={workContext} onChange={handleContextChange} disabled={combinedBusy} />
           </div>
         </UtilityPanel>
       );
@@ -903,22 +779,11 @@ export default function ChatPage() {
 
     if (activeUtility === 'workspace') {
       return (
-        <UtilityPanel
-          eyebrow="Resumen"
-          title="Superficie auxiliar"
-          description="Vista compacta de las ultimas respuestas para seguir trabajando sin saturar la pantalla."
-          onClose={() => setActiveUtility('')}
-        >
+        <UtilityPanel eyebrow="Resumen" title="Superficie auxiliar" description="Vista compacta de las ultimas respuestas para seguir trabajando sin saturar la pantalla." onClose={() => setActiveUtility('')}>
           <div className={styles.workspace}>
-            {workspaceResponses.length ? (
-              workspaceResponses.map((response, index) => (
-                <WorkspaceCard
-                  key={`${response.query || 'workspace'}-${index}`}
-                  response={response}
-                  index={index}
-                />
-              ))
-            ) : (
+            {workspaceResponses.length ? workspaceResponses.map((response, index) => (
+              <WorkspaceCard key={`${response.query || 'workspace'}-${index}`} response={response} index={index} />
+            )) : (
               <div className={styles.secondarySurface}>
                 <p className={styles.emptyNote}>Todavia no hay resultados juridicos disponibles.</p>
               </div>
@@ -936,11 +801,7 @@ export default function ChatPage() {
       <div className={styles.chatShell}>
         <section className={`surface-panel chat-stage ${styles.chatPrimary}`}>
           <div className={styles.topAccessBar}>
-            <button
-              type="button"
-              className={styles.accessButton}
-              onClick={() => toggleUtility('account')}
-            >
+            <button type="button" className={styles.accessButton} onClick={() => toggleUtility('account')}>
               <span className={styles.accessButtonLabel}>{sessionButtonLabel}</span>
             </button>
           </div>
@@ -951,7 +812,6 @@ export default function ChatPage() {
                 <h1 className={styles.heroTitle}>AILEX</h1>
                 <p className={styles.heroText}>Asistente Juridico Avanzado</p>
               </div>
-
               <LegalQueryForm
                 onSubmit={handleSubmit}
                 context={workContext}
@@ -962,6 +822,8 @@ export default function ChatPage() {
                 status={formStatus}
                 suggestions={SUGGESTIONS}
                 showContext={false}
+                prefillRequest={quickReplyRequest}
+                onPrefillApplied={handlePrefillApplied}
               />
             </div>
           ) : (
@@ -975,20 +837,20 @@ export default function ChatPage() {
 
               <div className={styles.threadViewport}>
                 <div className="chat-thread">
-                  {turns.map((turn) =>
-                    turn.role === 'user' ? (
-                      <UserMessage key={turn.id} query={turn.query} metadata={turn.metadata} />
-                    ) : turn.error ? (
-                      <AssistantErrorMessage key={turn.id} error={turn.error} />
-                    ) : (
-                      <AssistantResponseMessage
-                        key={turn.id}
-                        response={turn.response}
-                        requestContext={turn.requestContext}
-                      />
-                    ),
-                  )}
-
+                  {turns.map((turn) => turn.role === 'user' ? (
+                    <UserMessage key={turn.id} query={turn.query} metadata={turn.metadata} />
+                  ) : turn.error ? (
+                    <AssistantErrorMessage key={turn.id} error={turn.error} />
+                  ) : (
+                    <AssistantResponseMessage
+                      key={turn.id}
+                      response={turn.response}
+                      requestContext={turn.requestContext}
+                      onQuickReply={handleQuickReply}
+                      activeQuickReply={activeQuickReply}
+                      quickReplyDisabled={combinedBusy || guestLimitReached}
+                    />
+                  ))}
                   {loading ? <LoadingMessage /> : null}
                   <div ref={bottomRef} />
                 </div>
@@ -1006,6 +868,8 @@ export default function ChatPage() {
                   onResetConversation={resetConversation}
                   showReset
                   showContext={false}
+                  prefillRequest={quickReplyRequest}
+                  onPrefillApplied={handlePrefillApplied}
                 />
               </div>
             </div>
@@ -1019,7 +883,7 @@ export default function ChatPage() {
         session={session}
         loading={loading}
         authBusy={authBusy}
-        visible={isAuthDrawerOpen}
+        visible={activeUtility === 'account'}
         onClose={() => setActiveUtility('')}
         onLogin={handleLogin}
         onRegister={handleRegister}

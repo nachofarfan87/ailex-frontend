@@ -95,22 +95,6 @@ const NAV = [
       </svg>
     ),
   },
-  {
-    href: '/monitoreo-beta',
-    label: 'Monitoreo Beta',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-        <path
-          d="M9 2.25V5.25M9 12.75V15.75M2.25 9H5.25M12.75 9H15.75"
-          stroke="currentColor"
-          strokeWidth="1.25"
-          strokeLinecap="round"
-        />
-        <circle cx="9" cy="9" r="3" stroke="currentColor" strokeWidth="1.25" />
-        <circle cx="9" cy="9" r="6.75" stroke="currentColor" strokeWidth="1.25" strokeDasharray="3 3" />
-      </svg>
-    ),
-  },
 ];
 
 export default function Sidebar() {

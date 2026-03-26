@@ -36,6 +36,35 @@ function normalizeOutputMode(mode) {
   };
 }
 
+function normalizeCaseCompleteness(value) {
+  const safeValue = asObject(value);
+  return {
+    is_complete: Boolean(safeValue.is_complete),
+    missing_critical: asArray(safeValue.missing_critical),
+    missing_optional: asArray(safeValue.missing_optional),
+    confidence_level: String(safeValue.confidence_level || ''),
+  };
+}
+
+function normalizeConversational(value) {
+  const safeValue = asObject(value);
+  const knownFacts = asObject(safeValue.known_facts);
+
+  return {
+    message: String(safeValue.message || ''),
+    question: String(safeValue.question || ''),
+    options: asArray(safeValue.options),
+    missing_facts: asArray(safeValue.missing_facts),
+    next_step: String(safeValue.next_step || ''),
+    should_ask_first: Boolean(safeValue.should_ask_first),
+    guided_response: String(safeValue.guided_response || ''),
+    known_facts: knownFacts,
+    clarification_status: String(safeValue.clarification_status || ''),
+    asked_questions: asArray(safeValue.asked_questions),
+    case_completeness: normalizeCaseCompleteness(safeValue.case_completeness),
+  };
+}
+
 export function normalizeLegalQueryResponse(payload = {}) {
   const safePayload = asObject(payload);
   const reasoning = asObject(safePayload.reasoning);
@@ -130,6 +159,7 @@ export function normalizeLegalQueryResponse(payload = {}) {
       user: normalizeOutputMode(outputModes.user),
       professional: normalizeOutputMode(outputModes.professional),
     },
+    conversational: normalizeConversational(safePayload.conversational),
     response_text: String(safePayload.response_text || ''),
     quick_start: String(safePayload.quick_start || ''),
     visible_summary: summaryText,

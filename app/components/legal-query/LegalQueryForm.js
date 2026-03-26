@@ -1,6 +1,7 @@
+// frontend/app/components/legal-query/LegalQueryForm.js
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import LegalQueryContext from './LegalQueryContext';
 import styles from './LegalQuery.module.css';
 
@@ -16,30 +17,68 @@ export default function LegalQueryForm({
   onResetConversation,
   showReset = false,
   showContext = true,
+  prefillRequest = null,
+  onPrefillApplied,
 }) {
   const [query, setQuery] = useState('');
+  const textareaRef = useRef(null);
 
   const locked = disabled || loading;
 
-  async function handleSubmit(event) {
-    event?.preventDefault();
-
-    const trimmed = query.trim();
-    if (!trimmed || locked) return;
+  async function submitQuery(nextQuery, extraPayload = {}) {
+    const trimmed = String(nextQuery || '').trim();
+    if (!trimmed || locked) return false;
 
     const submitted = await onSubmit?.({
+      ...extraPayload,
       query: trimmed,
       jurisdiction: context.jurisdiction,
       forum: context.forum,
       top_k: Number(context.top_k),
       document_mode: context.document_mode,
-      facts: {},
+      facts: {
+        ...((extraPayload && typeof extraPayload === 'object' && extraPayload.facts) || {}),
+      },
+      metadata: {
+        ...((extraPayload && typeof extraPayload === 'object' && extraPayload.metadata) || {}),
+      },
     });
 
     if (submitted) {
       setQuery('');
     }
+
+    return Boolean(submitted);
   }
+
+  async function handleSubmit(event) {
+    event?.preventDefault();
+    await submitQuery(query);
+  }
+
+  useEffect(() => {
+    if (!prefillRequest?.id) {
+      return;
+    }
+
+    const nextQuery = String(prefillRequest.text || '').trim();
+    if (!nextQuery) {
+      onPrefillApplied?.(prefillRequest.id);
+      return;
+    }
+
+    setQuery(nextQuery);
+    textareaRef.current?.focus();
+
+    if (prefillRequest.submit && !locked) {
+      void submitQuery(nextQuery, prefillRequest).finally(() => {
+        onPrefillApplied?.(prefillRequest.id);
+      });
+      return;
+    }
+
+    onPrefillApplied?.(prefillRequest.id);
+  }, [prefillRequest, locked]);
 
   return (
     <form
@@ -53,6 +92,7 @@ export default function LegalQueryForm({
       <label className={styles.field}>
         <span className={styles.fieldLabel}>Consulta juridica</span>
         <textarea
+          ref={textareaRef}
           className={styles.textarea}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -66,7 +106,7 @@ export default function LegalQueryForm({
           onKeyDown={(event) => {
             if (event.key === 'Enter' && !event.shiftKey) {
               event.preventDefault();
-              handleSubmit();
+              void submitQuery(query);
             }
           }}
         />

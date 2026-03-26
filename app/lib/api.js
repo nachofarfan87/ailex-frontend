@@ -109,6 +109,21 @@ export function legalQuery(payload) {
   });
 }
 
+export function trackSessionAnalyticsEvent(payload) {
+  const token = getStoredAccessToken();
+  return request('/api/analytics/sessions/event', {
+    method: 'POST',
+    auth: Boolean(token),
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getSessionAnalyticsSummary() {
+  return request('/api/analytics/sessions/summary', {
+    auth: true,
+  });
+}
+
 export function registerAuth(payload) {
   return request('/api/auth/register', {
     method: 'POST',
