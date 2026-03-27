@@ -65,6 +65,25 @@ function normalizeConversational(value) {
   };
 }
 
+function normalizeConversationalResponse(value) {
+  const safeValue = asObject(value);
+  const rawMessages = asArray(safeValue.messages);
+  return {
+    mode: String(safeValue.mode || '').trim(),
+    domain: String(safeValue.domain || '').trim(),
+    messages: rawMessages
+      .map((item) => {
+        const safeItem = asObject(item);
+        const type = String(safeItem.type || '').trim();
+        const text = String(safeItem.text || '').trim();
+        if (!type || !text) return null;
+        return { type, text };
+      })
+      .filter(Boolean),
+    primary_question: String(safeValue.primary_question || '').trim(),
+  };
+}
+
 export function normalizeLegalQueryResponse(payload = {}) {
   const safePayload = asObject(payload);
   const reasoning = asObject(safePayload.reasoning);
@@ -160,6 +179,7 @@ export function normalizeLegalQueryResponse(payload = {}) {
       professional: normalizeOutputMode(outputModes.professional),
     },
     conversational: normalizeConversational(safePayload.conversational),
+    conversational_response: normalizeConversationalResponse(safePayload.conversational_response),
     response_text: String(safePayload.response_text || ''),
     quick_start: String(safePayload.quick_start || ''),
     visible_summary: summaryText,

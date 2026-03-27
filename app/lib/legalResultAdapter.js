@@ -111,6 +111,24 @@ function normalizeConversational(raw) {
   };
 }
 
+function normalizeConversationalResponse(raw) {
+  const safe = asObject(raw);
+  return {
+    mode: String(safe.mode || '').trim(),
+    domain: String(safe.domain || '').trim(),
+    messages: asArray(safe.messages)
+      .map((item) => {
+        const safeItem = asObject(item);
+        const type = String(safeItem.type || '').trim();
+        const text = extractDisplayText(safeItem.text);
+        if (!type || !text) return null;
+        return { type, text };
+      })
+      .filter(Boolean),
+    primary_question: extractDisplayText(safe.primary_question),
+  };
+}
+
 function normalizeForComparison(text) {
   return String(text || '')
     .toLowerCase()
@@ -363,6 +381,9 @@ export function adaptLegalResultForDisplay(response) {
   const professionalMode = normalizeMode(outputModes.professional);
   const rawResponseText = pickFirstText(safeResponse.response_text);
   const conversational = normalizeConversational(safeResponse.conversational);
+  const conversationalResponse = normalizeConversationalResponse(
+    safeResponse.conversationalResponse || safeResponse.conversational_response,
+  );
 
   const summary =
     conversational.message ||
@@ -485,5 +506,6 @@ export function adaptLegalResultForDisplay(response) {
         !criticalCompletenessItems.length && optionalCompletenessItems.length > 0,
       caseProgress,
     },
+    conversationalResponse,
   };
 }

@@ -2,6 +2,7 @@
 'use client';
 
 import styles from './LegalQuery.module.css';
+import ConversationalChat from './ConversationalChat';
 import ConversationalStateBlock from './ConversationalStateBlock';
 import LegalQueryExportActions from './LegalQueryExportActions';
 import LegalStrategy from './LegalStrategy';
@@ -73,6 +74,7 @@ export default function LegalQueryResults({
   response,
   requestContext = {},
   onQuickReply,
+  onSubmitAnswer,
   activeQuickReply = '',
   quickReplyDisabled = false,
 }) {
@@ -81,6 +83,7 @@ export default function LegalQueryResults({
   const warnings = collectLegalWarnings(normalized);
   const professionalMode = display.professionalMode;
   const isClarificationMode = display.mode === 'clarification';
+  const hasConversationalChat = display.conversationalResponse.messages.length > 0;
 
   const hasProfessionalMode = Boolean(
     professionalMode.summary ||
@@ -135,72 +138,81 @@ export default function LegalQueryResults({
 
       <LegalQueryExportActions response={normalized} requestContext={requestContext} />
 
-      <ConversationalStateBlock
-        display={display}
-        onQuickReply={onQuickReply}
-        activeQuickReply={activeQuickReply}
-        quickReplyDisabled={quickReplyDisabled}
-      />
+      {hasConversationalChat ? (
+        <ConversationalChat
+          conversationalResponse={display.conversationalResponse}
+          onSubmitAnswer={onSubmitAnswer || onQuickReply}
+        />
+      ) : (
+        <>
+          <ConversationalStateBlock
+            display={display}
+            onQuickReply={onQuickReply}
+            activeQuickReply={activeQuickReply}
+            quickReplyDisabled={quickReplyDisabled}
+          />
 
-      <section
-        className={`${styles.heroAnswer} ${
-          isClarificationMode ? styles.heroAnswerSecondary : ''
-        }`}
-      >
-        <div className={styles.heroAnswerHead}>
-          <span className={styles.heroAnswerEyebrow}>
-            {isClarificationMode ? 'Contexto util mientras aclaramos' : 'Analisis disponible'}
-          </span>
-        </div>
-        <p className={styles.heroAnswerText}>
-          {isClarificationMode
-            ? display.summary || display.whatThisMeans
-            : display.whatThisMeans || display.summary}
-        </p>
-        {display.quickStart && !isClarificationMode ? (
-          <div className={styles.heroQuickStart}>
-            <span className={styles.heroQuickStartLabel}>Primer paso recomendado</span>
-            <p className={styles.heroQuickStartText}>{display.quickStart}</p>
+          <section
+            className={`${styles.heroAnswer} ${
+              isClarificationMode ? styles.heroAnswerSecondary : ''
+            }`}
+          >
+            <div className={styles.heroAnswerHead}>
+              <span className={styles.heroAnswerEyebrow}>
+                {isClarificationMode ? 'Contexto util mientras aclaramos' : 'Analisis disponible'}
+              </span>
+            </div>
+            <p className={styles.heroAnswerText}>
+              {isClarificationMode
+                ? display.summary || display.whatThisMeans
+                : display.whatThisMeans || display.summary}
+            </p>
+            {display.quickStart && !isClarificationMode ? (
+              <div className={styles.heroQuickStart}>
+                <span className={styles.heroQuickStartLabel}>Primer paso recomendado</span>
+                <p className={styles.heroQuickStartText}>{display.quickStart}</p>
+              </div>
+            ) : null}
+          </section>
+
+          <div className={styles.secondaryGrid}>
+            {display.primaryClarifications.length > 0 ? (
+              <section className={styles.secondaryCard}>
+                <h4 className={styles.secondaryCardTitle}>
+                  {isClarificationMode ? 'Despues conviene aclarar tambien' : 'Que falta definir'}
+                </h4>
+                <CompactList items={display.primaryClarifications} />
+                <OverflowToggle
+                  items={display.overflowClarifications}
+                  label={`Ver ${display.overflowClarifications.length} mas`}
+                />
+              </section>
+            ) : null}
+
+            {display.primaryNextSteps.length > 0 ? (
+              <section className={styles.secondaryCard}>
+                <h4 className={styles.secondaryCardTitle}>Proximos pasos</h4>
+                <CompactList items={display.primaryNextSteps} />
+                <OverflowToggle
+                  items={display.overflowNextSteps}
+                  label={`Ver ${display.overflowNextSteps.length} mas`}
+                />
+              </section>
+            ) : null}
+
+            {!isClarificationMode && display.primaryKeyRisks.length > 0 ? (
+              <section className={`${styles.secondaryCard} ${styles.secondaryCardRisk}`}>
+                <h4 className={styles.secondaryCardTitle}>Riesgos clave</h4>
+                <CompactList items={display.primaryKeyRisks} />
+                <OverflowToggle
+                  items={display.overflowKeyRisks}
+                  label={`Ver ${display.overflowKeyRisks.length} mas`}
+                />
+              </section>
+            ) : null}
           </div>
-        ) : null}
-      </section>
-
-      <div className={styles.secondaryGrid}>
-        {display.primaryClarifications.length > 0 ? (
-          <section className={styles.secondaryCard}>
-            <h4 className={styles.secondaryCardTitle}>
-              {isClarificationMode ? 'Despues conviene aclarar tambien' : 'Que falta definir'}
-            </h4>
-            <CompactList items={display.primaryClarifications} />
-            <OverflowToggle
-              items={display.overflowClarifications}
-              label={`Ver ${display.overflowClarifications.length} mas`}
-            />
-          </section>
-        ) : null}
-
-        {display.primaryNextSteps.length > 0 ? (
-          <section className={styles.secondaryCard}>
-            <h4 className={styles.secondaryCardTitle}>Proximos pasos</h4>
-            <CompactList items={display.primaryNextSteps} />
-            <OverflowToggle
-              items={display.overflowNextSteps}
-              label={`Ver ${display.overflowNextSteps.length} mas`}
-            />
-          </section>
-        ) : null}
-
-        {!isClarificationMode && display.primaryKeyRisks.length > 0 ? (
-          <section className={`${styles.secondaryCard} ${styles.secondaryCardRisk}`}>
-            <h4 className={styles.secondaryCardTitle}>Riesgos clave</h4>
-            <CompactList items={display.primaryKeyRisks} />
-            <OverflowToggle
-              items={display.overflowKeyRisks}
-              label={`Ver ${display.overflowKeyRisks.length} mas`}
-            />
-          </section>
-        ) : null}
-      </div>
+        </>
+      )}
 
       {hasNormative ? (
         <details className={styles.disclosure}>
