@@ -44,6 +44,7 @@ function mapFactToLabel(value) {
   const labels = {
     divorcio_modalidad: 'Modalidad del divorcio',
     hay_hijos: 'Hijos',
+    hay_hijos_edad: 'Edad de los hijos',
     hay_acuerdo: 'Acuerdo',
     cese_convivencia: 'Cese de convivencia',
     hay_bienes: 'Bienes',
@@ -52,6 +53,13 @@ function mapFactToLabel(value) {
     urgencia: 'Urgencia',
     situacion_economica: 'Situacion economica',
     hay_ingresos: 'Ingresos identificables',
+    tema_alimentos: 'Tema: alimentos',
+    tema_divorcio: 'Tema: divorcio',
+    tema_cuidado: 'Tema: cuidado personal',
+    vinculo_parental: 'Vinculo parental',
+    // Slash-joined composite keys from completeness rules
+    'divorcio_modalidad/hay_acuerdo': 'Modalidad o acuerdo',
+    'situacion_economica/urgencia/hay_ingresos': 'Situacion economica o urgencia',
   };
   return labels[field] || humanizeFieldLabel(field);
 }
@@ -82,21 +90,23 @@ function normalizeConversational(raw) {
   const safe = asObject(raw);
   const caseCompleteness = asObject(safe.case_completeness);
   return {
-    message: String(safe.message || '').trim(),
-    question: String(safe.question || '').trim(),
-    options: asArray(safe.options).map((item) => String(item || '').trim()).filter(Boolean),
-    missing_facts: asArray(safe.missing_facts).map((item) => String(item || '').trim()).filter(Boolean),
-    next_step: String(safe.next_step || '').trim(),
+    // Use extractDisplayText for fields that could arrive as object from backend
+    message: extractDisplayText(safe.message),
+    question: extractDisplayText(safe.question),
+    options: asArray(safe.options).map((item) => extractDisplayText(item)).filter(Boolean),
+    missing_facts: asArray(safe.missing_facts).map((item) => extractDisplayText(item)).filter(Boolean),
+    next_step: extractDisplayText(safe.next_step),
     should_ask_first: Boolean(safe.should_ask_first),
-    guided_response: String(safe.guided_response || '').trim(),
+    guided_response: extractDisplayText(safe.guided_response),
     known_facts: asObject(safe.known_facts),
     clarification_status: String(safe.clarification_status || '').trim(),
-    asked_questions: asArray(safe.asked_questions).map((item) => String(item || '').trim()).filter(Boolean),
+    asked_questions: asArray(safe.asked_questions).map((item) => extractDisplayText(item)).filter(Boolean),
     case_completeness: {
       is_complete: Boolean(caseCompleteness.is_complete),
-      missing_critical: asArray(caseCompleteness.missing_critical).map((item) => String(item || '').trim()).filter(Boolean),
-      missing_optional: asArray(caseCompleteness.missing_optional).map((item) => String(item || '').trim()).filter(Boolean),
+      missing_critical: asArray(caseCompleteness.missing_critical).map((item) => extractDisplayText(item)).filter(Boolean),
+      missing_optional: asArray(caseCompleteness.missing_optional).map((item) => extractDisplayText(item)).filter(Boolean),
       confidence_level: String(caseCompleteness.confidence_level || '').trim(),
+      known_count: typeof caseCompleteness.known_count === 'number' ? caseCompleteness.known_count : 0,
     },
   };
 }
@@ -123,6 +133,36 @@ function itemToText(item) {
     item.source_id ||
     ''
   );
+}
+
+/**
+ * Defensive extractor: ensures ANY value becomes a display-safe string.
+ * Handles: string, number, boolean, object (extracts known text fields),
+ * null/undefined → ''.
+ * NEVER returns '[object Object]'.
+ */
+function extractDisplayText(value) {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    return (
+      value.description ||
+      value.action ||
+      value.label ||
+      value.title ||
+      value.titulo ||
+      value.text ||
+      value.question ||
+      value.name ||
+      value.message ||
+      ''
+    );
+  }
+  if (Array.isArray(value)) {
+    return value.map(extractDisplayText).filter(Boolean).join('; ');
+  }
+  return '';
 }
 
 function deduplicateItems(items) {
@@ -288,6 +328,17 @@ function buildCaseProgress(conversational) {
 
   const totalFields = defined.length + missing.length;
   if (totalFields < 2) {
+    // Even with < 2 trackable fields, if backend reports known_count > 0,
+    // show a minimal progress bar so the user sees progress != 0.
+    const backendKnown = completeness.known_count || 0;
+    if (backendKnown > 0 && defined.length === 0 && missing.length === 0) {
+      return {
+        percentage: Math.min(backendKnown * 15, 60),
+        defined: [],
+        missing: [],
+        totalFields: backendKnown,
+      };
+    }
     return null;
   }
 
@@ -298,6 +349,8 @@ function buildCaseProgress(conversational) {
     totalFields,
   };
 }
+
+export { extractDisplayText, buildCaseProgress, itemToText };
 
 export function adaptLegalResultForDisplay(response) {
   const safeResponse = asObject(response);

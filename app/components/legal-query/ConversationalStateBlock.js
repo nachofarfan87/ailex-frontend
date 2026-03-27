@@ -24,17 +24,26 @@ function InlinePills({ items = [], tone = 'neutral' }) {
   );
 }
 
+function safeText(value) {
+  if (typeof value === 'string') return value;
+  if (!value || typeof value !== 'object') return String(value ?? '');
+  return value.description || value.label || value.title || value.text || value.action || '';
+}
+
 function SectionList({ title, items = [] }) {
   if (!items.length) return null;
   return (
     <div className={styles.conversationMiniSection}>
       <p className={styles.conversationMiniTitle}>{title}</p>
       <ul className={styles.compactList}>
-        {items.map((item, index) => (
-          <li key={`${item}-${index}`} className={styles.compactItem}>
-            {item}
-          </li>
-        ))}
+        {items.map((item, index) => {
+          const text = safeText(item);
+          return (
+            <li key={`${text}-${index}`} className={styles.compactItem}>
+              {text}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
@@ -150,7 +159,13 @@ export default function ConversationalStateBlock({
       {conversational.next_step ? (
         <p className={styles.conversationNextStep}>
           <span className={styles.conversationNextStepLabel}>Siguiente paso sugerido:</span>{' '}
-          {conversational.next_step}
+          {typeof conversational.next_step === 'string'
+            ? conversational.next_step
+            : conversational.next_step?.description ||
+              conversational.next_step?.action ||
+              conversational.next_step?.title ||
+              conversational.next_step?.text ||
+              ''}
         </p>
       ) : null}
 
