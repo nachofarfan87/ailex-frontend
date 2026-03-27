@@ -164,7 +164,7 @@ function extractDisplayText(value) {
   if (typeof value === 'string') return value.trim();
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   if (typeof value === 'object' && !Array.isArray(value)) {
-    return (
+    const candidate =
       value.description ||
       value.action ||
       value.label ||
@@ -174,8 +174,10 @@ function extractDisplayText(value) {
       value.question ||
       value.name ||
       value.message ||
-      ''
-    );
+      '';
+    // Recurse: the extracted field itself might be an object (nested structures).
+    // This guarantees we NEVER return a non-primitive, preventing [object Object].
+    return typeof candidate === 'string' ? candidate.trim() : extractDisplayText(candidate);
   }
   if (Array.isArray(value)) {
     return value.map(extractDisplayText).filter(Boolean).join('; ');
