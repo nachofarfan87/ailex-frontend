@@ -31,6 +31,11 @@ function humanizeFieldLabel(value) {
     cese_convivencia: 'si ya hubo cese de convivencia',
     hay_bienes: 'si hay bienes relevantes',
     vivienda_familiar: 'la vivienda familiar',
+    convenio_regulador: 'si ya hay convenio regulador',
+    alimentos_definidos: 'si ya definieron alimentos',
+    cuota_alimentaria_porcentaje: 'el porcentaje de cuota alimentaria',
+    regimen_comunicacional: 'si ya definieron regimen de comunicacion',
+    regimen_comunicacional_frecuencia: 'la frecuencia del regimen de comunicacion',
     rol_procesal: 'el rol procesal',
     urgencia: 'si hay urgencia',
     situacion_economica: 'la situacion economica',
@@ -49,6 +54,11 @@ function mapFactToLabel(value) {
     cese_convivencia: 'Cese de convivencia',
     hay_bienes: 'Bienes',
     vivienda_familiar: 'Vivienda',
+    convenio_regulador: 'Convenio regulador',
+    alimentos_definidos: 'Alimentos definidos',
+    cuota_alimentaria_porcentaje: 'Cuota alimentaria',
+    regimen_comunicacional: 'Regimen comunicacional',
+    regimen_comunicacional_frecuencia: 'Frecuencia de comunicacion',
     rol_procesal: 'Rol procesal',
     urgencia: 'Urgencia',
     situacion_economica: 'Situacion economica',
@@ -278,6 +288,28 @@ function factsToPills(facts) {
 
   if (typeof safeFacts.vivienda_familiar === 'boolean' && safeFacts.vivienda_familiar) {
     pills.push('Vivienda familiar');
+  }
+
+  if (typeof safeFacts.convenio_regulador === 'boolean' && safeFacts.convenio_regulador) {
+    pills.push('Hay convenio regulador');
+  }
+
+  if (typeof safeFacts.alimentos_definidos === 'boolean' && safeFacts.alimentos_definidos) {
+    pills.push('Alimentos definidos');
+  }
+
+  const cuotaAlimentaria = String(safeFacts.cuota_alimentaria_porcentaje || '').trim();
+  if (cuotaAlimentaria) {
+    pills.push(`Cuota: ${cuotaAlimentaria} del sueldo`);
+  }
+
+  if (typeof safeFacts.regimen_comunicacional === 'boolean' && safeFacts.regimen_comunicacional) {
+    pills.push('Regimen comunicacional');
+  }
+
+  const frecuenciaComunicacion = String(safeFacts.regimen_comunicacional_frecuencia || '').trim();
+  if (frecuenciaComunicacion) {
+    pills.push(`Comunicacion: ${frecuenciaComunicacion}`);
   }
 
   const situacionEconomica = String(safeFacts.situacion_economica || '').trim();

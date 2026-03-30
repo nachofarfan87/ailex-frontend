@@ -30,6 +30,12 @@ import {
 } from './lib/legalQuery';
 import { adaptLegalResultForDisplay } from './lib/legalResultAdapter';
 import {
+  buildGuestAccessMessage,
+  buildGuestLimitReachedMessage,
+  GUEST_QUERY_LIMIT,
+  isGuestQueryLimitEnabled,
+} from './lib/runtimeConfig';
+import {
   buildRemoteWorkspace,
   createRemoteDefaultExpediente,
   normalizeRemoteConsultaDetail,
@@ -43,7 +49,6 @@ import {
 } from './lib/legalQueryPreferences';
 
 const USE_EXPEDIENT_CONTEXT = false;
-const GUEST_QUERY_LIMIT = 5;
 const GUEST_QUERY_STORAGE_KEY = 'ailex_guest_query_count';
 const SUGGESTIONS = [
   'plazo para contestar demanda',
@@ -432,7 +437,7 @@ export default function ChatPage() {
       if (!mounted) return;
       setWorkContext(readLegalQueryContext());
       if (!storedSession.is_authenticated) {
-        setStatus('Puedes probar AILEX sin iniciar sesion. El acceso libre esta limitado para la beta.');
+        setStatus(buildGuestAccessMessage(getGuestQueryCount()));
         return;
       }
       setAuthBusy(true);
@@ -506,7 +511,7 @@ export default function ChatPage() {
     setWorkspaceState(EMPTY_WORKSPACE);
     setActiveHistoryId('');
     startTransition(() => setTurns([]));
-    setStatus('Sesion cerrada. Puedes seguir consultando como invitado.');
+    setStatus(`Sesion cerrada. ${buildGuestAccessMessage(getGuestQueryCount())}`);
     setActiveUtility('account');
   }
 
@@ -581,8 +586,8 @@ export default function ChatPage() {
 
   async function handleSubmit(payload) {
     if (loading) return false;
-    if (!isAuthenticated && getGuestQueryCount() >= GUEST_QUERY_LIMIT) {
-      setStatus('Has alcanzado el limite de consultas de prueba. Inicia sesion para seguir usando AILEX.');
+    if (!isAuthenticated && isGuestQueryLimitEnabled() && getGuestQueryCount() >= GUEST_QUERY_LIMIT) {
+      setStatus(buildGuestLimitReachedMessage());
       setActiveUtility('account');
       return false;
     }
@@ -634,7 +639,7 @@ export default function ChatPage() {
         ]);
       });
 
-      if (!isAuthenticated) incrementGuestQueryCount();
+      if (!isAuthenticated && isGuestQueryLimitEnabled()) incrementGuestQueryCount();
 
       if (savedConsultaId) {
         setWorkspaceBusy(true);
@@ -754,11 +759,11 @@ export default function ChatPage() {
   const isAuthDrawerOpen = activeUtility === 'account';
   const sessionButtonLabel = isAuthenticated ? 'Sesion activa' : 'Ingresar';
   const guestQueryCount = !isAuthenticated ? getGuestQueryCount() : 0;
-  const guestLimitReached = !isAuthenticated && guestQueryCount >= GUEST_QUERY_LIMIT;
+  const guestLimitReached = !isAuthenticated && isGuestQueryLimitEnabled() && guestQueryCount >= GUEST_QUERY_LIMIT;
   const formStatus = guestLimitReached
-    ? 'Has alcanzado el limite de consultas de prueba. Inicia sesion para seguir usando AILEX.'
+    ? buildGuestLimitReachedMessage()
     : !isAuthenticated && !authBusy
-      ? `Beta abierta - ${GUEST_QUERY_LIMIT - guestQueryCount} consultas restantes. Inicia sesion para acceso completo.`
+      ? buildGuestAccessMessage(guestQueryCount)
       : '';
 
   function toggleUtility(panel) {

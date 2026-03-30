@@ -193,6 +193,36 @@ test('buildCaseProgress returns null when truly empty', () => {
   assert.equal(progress, null);
 });
 
+test('adaptLegalResultForDisplay surfaces convenio and regimen facts as pills', () => {
+  const display = adaptLegalResultForDisplay({
+    case_domain: 'divorcio',
+    conversational: {
+      message: 'Test',
+      should_ask_first: false,
+      known_facts: {
+        convenio_regulador: true,
+        alimentos_definidos: true,
+        cuota_alimentaria_porcentaje: '20%',
+        regimen_comunicacional: true,
+        regimen_comunicacional_frecuencia: '3 dias por semana',
+      },
+      case_completeness: {
+        is_complete: true,
+        missing_critical: [],
+        missing_optional: [],
+        known_count: 5,
+      },
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.ok(display.conversational.knownFactPills.includes('Hay convenio regulador'));
+  assert.ok(display.conversational.knownFactPills.includes('Alimentos definidos'));
+  assert.ok(display.conversational.knownFactPills.includes('Cuota: 20% del sueldo'));
+  assert.ok(display.conversational.knownFactPills.includes('Regimen comunicacional'));
+  assert.ok(display.conversational.knownFactPills.includes('Comunicacion: 3 dias por semana'));
+});
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Full integration: no [object Object] anywhere in serialized output
 // ═══════════════════════════════════════════════════════════════════════════
