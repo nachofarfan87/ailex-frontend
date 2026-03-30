@@ -208,6 +208,7 @@ function buildClarificationContext(turns) {
   }
 
   return {
+    ...previousContext,
     base_query: baseQuery,
     case_domain: String(response.case_domain || previousContext.case_domain || '').trim(),
     last_question: conversational.should_ask_first ? question : String(previousContext.last_question || '').trim(),
