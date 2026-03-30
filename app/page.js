@@ -175,21 +175,42 @@ function buildClarificationContext(turns) {
 
   const response = lastAssistantTurn.response || {};
   const conversational = response.conversational || {};
-  if (!conversational.should_ask_first) return null;
-
   const previousContext = lastAssistantTurn.requestContext?.metadata?.clarification_context || {};
   const question = String(conversational.question || '').trim();
-  const baseQuery = String(previousContext.base_query || lastAssistantTurn.requestContext?.query || response.query || '').trim();
+  const baseQuery = String(
+    previousContext.base_query ||
+      lastAssistantTurn.requestContext?.query ||
+      response.query ||
+      '',
+  ).trim();
+  const conversationalKnownFacts =
+    conversational.known_facts && typeof conversational.known_facts === 'object' && !Array.isArray(conversational.known_facts)
+      ? conversational.known_facts
+      : {};
+  const knownFacts = {
+    ...(previousContext.known_facts && typeof previousContext.known_facts === 'object' && !Array.isArray(previousContext.known_facts)
+      ? previousContext.known_facts
+      : {}),
+    ...conversationalKnownFacts,
+  };
+  const clarifiedFields = dedupeTextList([
+    ...(Array.isArray(previousContext.clarified_fields) ? previousContext.clarified_fields : []),
+    ...Object.keys(knownFacts),
+  ]);
+
+  if (!baseQuery && !response.case_domain && !Object.keys(knownFacts).length) {
+    return null;
+  }
 
   return {
     base_query: baseQuery,
     case_domain: String(response.case_domain || previousContext.case_domain || '').trim(),
-    last_question: question,
-    asked_questions: dedupeTextList([...(Array.isArray(previousContext.asked_questions) ? previousContext.asked_questions : []), question]),
-    known_facts:
-      conversational.known_facts && typeof conversational.known_facts === 'object' && !Array.isArray(conversational.known_facts)
-        ? conversational.known_facts
-        : previousContext.known_facts || {},
+    last_question: conversational.should_ask_first ? question : String(previousContext.last_question || '').trim(),
+    asked_questions: conversational.should_ask_first
+      ? dedupeTextList([...(Array.isArray(previousContext.asked_questions) ? previousContext.asked_questions : []), question])
+      : dedupeTextList(Array.isArray(previousContext.asked_questions) ? previousContext.asked_questions : []),
+    known_facts: knownFacts,
+    clarified_fields: clarifiedFields,
   };
 }
 
