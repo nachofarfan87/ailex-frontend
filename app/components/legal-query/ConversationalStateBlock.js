@@ -76,7 +76,7 @@ export default function ConversationalStateBlock({
           </span>
           <h4 className={styles.conversationHeroTitle}>
             {hasQuestion && isClarification
-              ? 'Lo principal ahora es definir esto'
+              ? 'Para seguir, necesito confirmar este punto'
               : 'Estado de la consulta'}
           </h4>
         </div>
@@ -159,13 +159,7 @@ export default function ConversationalStateBlock({
       {conversational.next_step ? (
         <p className={styles.conversationNextStep}>
           <span className={styles.conversationNextStepLabel}>Siguiente paso sugerido:</span>{' '}
-          {typeof conversational.next_step === 'string'
-            ? conversational.next_step
-            : conversational.next_step?.description ||
-              conversational.next_step?.action ||
-              conversational.next_step?.title ||
-              conversational.next_step?.text ||
-              ''}
+          {safeText(conversational.next_step)}
         </p>
       ) : null}
 

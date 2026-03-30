@@ -388,6 +388,7 @@ export function adaptLegalResultForDisplay(response) {
   );
 
   const summary =
+    conversational.guided_response ||
     conversational.message ||
     userMode.summary ||
     pickFirstText(reasoning.short_answer, reasoning.case_analysis, rawResponseText);
@@ -395,6 +396,7 @@ export function adaptLegalResultForDisplay(response) {
   const quickStart = userMode.quick_start || pickFirstText(safeResponse.quick_start);
   const whatThisMeans =
     userMode.what_this_means ||
+    conversational.guided_response ||
     conversational.message ||
     pickFirstText(caseStrategy.strategic_narrative, summary, rawResponseText);
 
@@ -450,9 +452,9 @@ export function adaptLegalResultForDisplay(response) {
 
   const shouldAskFirst = conversational.should_ask_first;
   const mode = shouldAskFirst ? 'clarification' : 'advice';
-  const modeLabel = shouldAskFirst ? 'Necesito un dato clave' : 'Orientacion inicial';
+  const modeLabel = shouldAskFirst ? 'Aclaracion breve' : 'Orientacion inicial';
   const modeDescription = shouldAskFirst
-    ? 'AILEX necesita una aclaracion breve antes de desarrollar mejor la estrategia.'
+    ? 'AILEX necesita confirmar un punto para que la orientacion visible refleje mejor tu caso.'
     : 'AILEX ya tiene una base suficiente para orientarte con mas detalle.';
 
   const primaryClarifications = shouldAskFirst

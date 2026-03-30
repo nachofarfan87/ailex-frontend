@@ -14,6 +14,30 @@ function pickFirstText(...values) {
   return '';
 }
 
+function extractDisplayText(value) {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) {
+    return value.map(extractDisplayText).filter(Boolean).join('; ');
+  }
+  if (typeof value === 'object') {
+    const candidate =
+      value.description ||
+      value.action ||
+      value.label ||
+      value.title ||
+      value.titulo ||
+      value.text ||
+      value.question ||
+      value.name ||
+      value.message ||
+      '';
+    return extractDisplayText(candidate);
+  }
+  return '';
+}
+
 function normalizeOutputMode(mode) {
   const safeMode = asObject(mode);
   return {
@@ -51,16 +75,16 @@ function normalizeConversational(value) {
   const knownFacts = asObject(safeValue.known_facts);
 
   return {
-    message: String(safeValue.message || ''),
-    question: String(safeValue.question || ''),
-    options: asArray(safeValue.options),
-    missing_facts: asArray(safeValue.missing_facts),
-    next_step: String(safeValue.next_step || ''),
+    message: extractDisplayText(safeValue.message),
+    question: extractDisplayText(safeValue.question),
+    options: asArray(safeValue.options).map(extractDisplayText).filter(Boolean),
+    missing_facts: asArray(safeValue.missing_facts).map(extractDisplayText).filter(Boolean),
+    next_step: extractDisplayText(safeValue.next_step),
     should_ask_first: Boolean(safeValue.should_ask_first),
-    guided_response: String(safeValue.guided_response || ''),
+    guided_response: extractDisplayText(safeValue.guided_response),
     known_facts: knownFacts,
     clarification_status: String(safeValue.clarification_status || ''),
-    asked_questions: asArray(safeValue.asked_questions),
+    asked_questions: asArray(safeValue.asked_questions).map(extractDisplayText).filter(Boolean),
     case_completeness: normalizeCaseCompleteness(safeValue.case_completeness),
   };
 }
@@ -75,12 +99,12 @@ function normalizeConversationalResponse(value) {
       .map((item) => {
         const safeItem = asObject(item);
         const type = String(safeItem.type || '').trim();
-        const text = String(safeItem.text || '').trim();
+        const text = extractDisplayText(safeItem.text);
         if (!type || !text) return null;
         return { type, text };
       })
       .filter(Boolean),
-    primary_question: String(safeValue.primary_question || '').trim(),
+    primary_question: extractDisplayText(safeValue.primary_question),
   };
 }
 
