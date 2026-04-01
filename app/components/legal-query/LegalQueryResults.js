@@ -295,11 +295,8 @@ export default function LegalQueryResults({
               <section className={`${styles.panel} ${styles.resultsSection}`}>
                 <h4 className={styles.panelTitle}>Faltantes y foco procesal</h4>
                 <ProceduralStrategy
-                  nextSteps={
-                    professionalMode.recommended_actions.length
-                      ? professionalMode.recommended_actions
-                      : normalized.procedural_strategy.next_steps
-                  }
+                  primaryAction={display.quickStart}
+                  nextSteps={display.nextSteps}
                   risks={
                     professionalMode.risk_analysis.length
                       ? professionalMode.risk_analysis

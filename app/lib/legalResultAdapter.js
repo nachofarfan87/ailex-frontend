@@ -163,6 +163,21 @@ function itemToText(item) {
   );
 }
 
+function normalizeActionText(text) {
+  return normalizeForComparison(String(text || '').replace(/^primer paso recomendado:\s*/i, ''));
+}
+
+function isSameAction(left, right) {
+  const normalizedLeft = normalizeActionText(left);
+  const normalizedRight = normalizeActionText(right);
+  if (!normalizedLeft || !normalizedRight) return false;
+  return (
+    normalizedLeft === normalizedRight ||
+    normalizedLeft.includes(normalizedRight) ||
+    normalizedRight.includes(normalizedLeft)
+  );
+}
+
 /**
  * Defensive extractor: ensures ANY value becomes a display-safe string.
  * Handles: string, number, boolean, object (extracts known text fields),
@@ -459,9 +474,10 @@ export function adaptLegalResultForDisplay(response) {
         proceduralStrategy.next_steps,
         professionalMode.recommended_actions,
       );
-  const nextSteps = filterRoboticPhrases(
+  const dedupedNextSteps = filterRoboticPhrases(
     deduplicateItems(rawNextSteps.map(itemToText).filter(Boolean)),
   );
+  const nextSteps = dedupedNextSteps.filter((item) => !isSameAction(item, quickStart));
 
   const rawKeyRisks = userMode.key_risks.length
     ? userMode.key_risks
@@ -498,8 +514,8 @@ export function adaptLegalResultForDisplay(response) {
     ? pendingClarifications.filter((item) => !primaryClarifications.includes(item)).slice(0, 4)
     : pendingClarifications.slice(4);
 
-  const primaryNextSteps = nextSteps.slice(0, 4);
-  const overflowNextSteps = nextSteps.slice(4);
+  const primaryNextSteps = nextSteps.slice(0, 3);
+  const overflowNextSteps = nextSteps.slice(3);
   const primaryKeyRisks = keyRisks.slice(0, 3);
   const overflowKeyRisks = keyRisks.slice(3);
   const caseProgress = buildCaseProgress(conversational);
@@ -512,6 +528,7 @@ export function adaptLegalResultForDisplay(response) {
     summary:
       summary ||
       'AILEX no devolvio un resumen claro, pero la respuesta completa sigue disponible.',
+    primaryAction: quickStart,
     quickStart,
     whatThisMeans: whatThisMeans || summary || rawResponseText,
     nextSteps,

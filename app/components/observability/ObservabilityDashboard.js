@@ -7,6 +7,7 @@ import PageHeader from '../PageHeader';
 import DecisionTraceList from './DecisionTraceList';
 import DriftSummary from './DriftSummary';
 import InsightsPanel from './InsightsPanel';
+import LiveAlertsPanel from './LiveAlertsPanel';
 import ObservabilityPatterns from './ObservabilityPatterns';
 import ObservabilitySummaryCards from './ObservabilitySummaryCards';
 import ObservabilityTable from './ObservabilityTable';
@@ -18,6 +19,7 @@ import {
   getLearningObservabilityEvents,
   getLearningObservabilityFamilies,
   getLearningObservabilityInsights,
+  getLearningObservabilityLiveAlerts,
   getLearningObservabilityOverview,
   getLearningObservabilitySignatures,
   getLearningObservabilityTimeline,
@@ -30,6 +32,7 @@ import {
   filterMetricRows,
   formatCompactNumber,
   humanizeToken,
+  normalizeLiveAlertsSnapshot,
   resolveInsightAction,
   sortDecisionsByDate,
   toDateInputValue,
@@ -66,6 +69,7 @@ const EMPTY_SNAPSHOT = {
   overview: EMPTY_OVERVIEW,
   patterns: EMPTY_PATTERNS,
   drift: EMPTY_DRIFT,
+  liveAlerts: normalizeLiveAlertsSnapshot({}),
   events: [],
   signatures: [],
   families: [],
@@ -128,6 +132,10 @@ async function loadObservabilitySnapshot(filters) {
       date_from: filters.dateFrom || undefined,
       date_to: filters.dateTo || undefined,
     }),
+    liveAlerts: getLearningObservabilityLiveAlerts({
+      last_hours: filters.liveAlertsHours,
+      event_limit: filters.liveAlertsLimit,
+    }),
   };
 
   const entries = Object.entries(requests);
@@ -156,7 +164,9 @@ export default function ObservabilityDashboard() {
   const [eventType, setEventType] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [bucketDays, setBucketDays] = useState('1');
+const [bucketDays, setBucketDays] = useState('1');
+  const [liveAlertsHours, setLiveAlertsHours] = useState('6');
+  const [liveAlertsLimit, setLiveAlertsLimit] = useState('200');
   const [signatureSearch, setSignatureSearch] = useState('');
   const [familySearch, setFamilySearch] = useState('');
   const [decisionSearch, setDecisionSearch] = useState('');
@@ -169,6 +179,7 @@ export default function ObservabilityDashboard() {
   const [actionFeedback, setActionFeedback] = useState(null);
 
   const insightsRef = useRef(null);
+  const liveAlertsRef = useRef(null);
   const driftRef = useRef(null);
   const decisionsRef = useRef(null);
   const timelineRef = useRef(null);
@@ -195,6 +206,8 @@ export default function ObservabilityDashboard() {
           dateFrom,
           dateTo,
           bucketDays: Number(bucketDays),
+          liveAlertsHours: Number(liveAlertsHours),
+          liveAlertsLimit: Number(liveAlertsLimit),
         });
 
         if (cancelled) {
@@ -206,6 +219,7 @@ export default function ObservabilityDashboard() {
             overview: extractSectionState(nextSnapshot.overview, EMPTY_OVERVIEW),
             patterns: extractSectionState(nextSnapshot.patterns, EMPTY_PATTERNS),
             drift: extractSectionState(nextSnapshot.drift, EMPTY_DRIFT),
+            liveAlerts: normalizeLiveAlertsSnapshot(nextSnapshot.liveAlerts),
             events: extractSectionState(nextSnapshot.events, []),
             signatures: extractSectionState(nextSnapshot.signatures, []),
             families: extractSectionState(nextSnapshot.families, []),
@@ -228,7 +242,7 @@ export default function ObservabilityDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [eventType, dateFrom, dateTo, bucketDays, refreshToken]);
+  }, [eventType, dateFrom, dateTo, bucketDays, liveAlertsHours, liveAlertsLimit, refreshToken]);
 
   const eventOptions = useMemo(
     () => buildEventTypeOptions(snapshot.events),
@@ -315,6 +329,8 @@ export default function ObservabilityDashboard() {
       dateFrom,
       dateTo,
       bucketDays,
+      liveAlertsHours,
+      liveAlertsLimit,
       signatureSearch,
       familySearch,
       decisionSearch,
@@ -327,6 +343,8 @@ export default function ObservabilityDashboard() {
     setDateFrom(state.dateFrom || '');
     setDateTo(state.dateTo || '');
     setBucketDays(state.bucketDays || '1');
+    setLiveAlertsHours(state.liveAlertsHours || '6');
+    setLiveAlertsLimit(state.liveAlertsLimit || '200');
     setSignatureSearch(state.signatureSearch || '');
     setFamilySearch(state.familySearch || '');
     setDecisionSearch(state.decisionSearch || '');
@@ -370,6 +388,8 @@ export default function ObservabilityDashboard() {
         return decisionsRef;
       case 'insights':
         return insightsRef;
+      case 'live-alerts':
+        return liveAlertsRef;
       default:
         return null;
     }
@@ -436,7 +456,7 @@ export default function ObservabilityDashboard() {
   }
 
   const totalErrors = Object.keys(snapshot.errors || {}).length;
-  const allSectionsFailed = totalErrors >= 8;
+  const allSectionsFailed = totalErrors >= 9;
 
   if (loading) {
     return (
@@ -556,6 +576,20 @@ export default function ObservabilityDashboard() {
                   </select>
                 </div>
 
+                <div className={styles.toolbarField}>
+                  <label htmlFor="live-alert-hours">Live alerts</label>
+                  <select
+                    id="live-alert-hours"
+                    value={liveAlertsHours}
+                    onChange={(event) => setLiveAlertsHours(event.target.value)}
+                  >
+                    <option value="3">3 horas</option>
+                    <option value="6">6 horas</option>
+                    <option value="12">12 horas</option>
+                    <option value="24">24 horas</option>
+                  </select>
+                </div>
+
                 <div className={styles.headerActions}>
                   <button
                     type="button"
@@ -564,6 +598,8 @@ export default function ObservabilityDashboard() {
                       setEventType('');
                       setDateFrom('');
                       setDateTo('');
+                      setLiveAlertsHours('6');
+                      setLiveAlertsLimit('200');
                     }}
                   >
                     Limpiar filtros
@@ -618,6 +654,19 @@ export default function ObservabilityDashboard() {
             Algunas secciones no cargaron correctamente: {Object.keys(snapshot.errors).join(', ')}.
           </div>
         ) : null}
+
+        <div
+          id="live-alerts"
+          ref={liveAlertsRef}
+          className={`${styles.sectionAnchor} ${highlightedSection === 'live-alerts' ? styles.sectionHighlight : ''}`}
+        >
+          <LiveAlertsPanel
+            snapshot={snapshot.liveAlerts}
+            error={snapshot.errors.liveAlerts}
+            refreshing={refreshing}
+            onRefresh={() => setRefreshToken((value) => value + 1)}
+          />
+        </div>
 
         <div
           id="insights"

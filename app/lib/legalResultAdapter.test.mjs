@@ -223,6 +223,49 @@ test('adaptLegalResultForDisplay surfaces convenio and regimen facts as pills', 
   assert.ok(display.conversational.knownFactPills.includes('Comunicacion: 3 dias por semana'));
 });
 
+test('adaptLegalResultForDisplay removes quick start from next steps and limits visible support actions', () => {
+  const display = adaptLegalResultForDisplay({
+    case_domain: 'divorcio',
+    quick_start:
+      'Primer paso recomendado: Redactar el convenio con precision suficiente para homologacion.',
+    case_strategy: {
+      recommended_actions: [
+        'Redactar el convenio con precision suficiente para homologacion.',
+        'Preparar presentacion inicial de divorcio con encuadre correcto.',
+        'Acreditar documental basica del vinculo.',
+        'Precisar competencia judicial y domicilios relevantes.',
+        'Ordenar anexos patrimoniales.',
+      ],
+      risk_analysis: [],
+    },
+    procedural_strategy: {
+      next_steps: [
+        'Redactar el convenio con precision suficiente para homologacion.',
+        'Preparar presentacion inicial de divorcio con encuadre correcto.',
+        'Acreditar documental basica del vinculo.',
+        'Precisar competencia judicial y domicilios relevantes.',
+        'Ordenar anexos patrimoniales.',
+      ],
+    },
+    conversational: {
+      message: 'Test',
+      should_ask_first: false,
+      known_facts: {},
+      case_completeness: {
+        is_complete: true,
+        missing_critical: [],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.primaryAction, 'Primer paso recomendado: Redactar el convenio con precision suficiente para homologacion.');
+  assert.ok(display.nextSteps.every((item) => !item.includes('Redactar el convenio con precision suficiente para homologacion.')));
+  assert.equal(display.primaryNextSteps.length, 3);
+});
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Full integration: no [object Object] anywhere in serialized output
 // ═══════════════════════════════════════════════════════════════════════════

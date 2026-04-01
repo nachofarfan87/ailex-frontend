@@ -23,16 +23,25 @@ function StrategyColumn({ title, items, emptyMessage }) {
 }
 
 export default function ProceduralStrategy({
+  primaryAction = '',
   nextSteps = [],
   risks = [],
   missingInformation = [],
 }) {
   return (
     <div className={styles.resultsGrid}>
+      <div className={styles.panel}>
+        <h4 className={styles.panelTitle}>Accion principal</h4>
+        {primaryAction ? (
+          <p className={styles.panelText}>{formatListItem(primaryAction)}</p>
+        ) : (
+          <p className={styles.emptyNote}>No se informo una accion principal concreta.</p>
+        )}
+      </div>
       <StrategyColumn
-        title="Próximos pasos"
+        title="Acciones de soporte"
         items={nextSteps}
-        emptyMessage="No se informaron próximos pasos concretos."
+        emptyMessage="No se informaron acciones de soporte concretas."
       />
       <StrategyColumn
         title="Riesgos procesales"

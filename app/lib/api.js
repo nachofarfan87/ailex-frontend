@@ -422,6 +422,12 @@ export function getLearningObservabilityInsights(filters = {}) {
   });
 }
 
+export function getLearningObservabilityLiveAlerts(filters = {}) {
+  return request(`/api/learning/observability/live-alerts${buildQuery(filters)}`, {
+    auth: true,
+  });
+}
+
 export function getBetaDashboard() {
   return request('/api/monitoring/beta-dashboard', {
     auth: true,
