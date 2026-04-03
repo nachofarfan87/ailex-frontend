@@ -202,6 +202,12 @@ function buildClarificationContext(turns) {
     ...(Array.isArray(previousContext.clarified_fields) ? previousContext.clarified_fields : []),
     ...Object.keys(knownFacts),
   ]);
+  // Round-trip conversation_memory so the backend can accumulate resolved_slots,
+  // asked_questions and user_answers across turns without needing the DB.
+  const conversationMemory =
+    conversational.conversation_memory && typeof conversational.conversation_memory === 'object'
+      ? conversational.conversation_memory
+      : previousContext.conversation_memory || {};
 
   if (!baseQuery && !response.case_domain && !Object.keys(knownFacts).length) {
     return null;
@@ -217,6 +223,7 @@ function buildClarificationContext(turns) {
       : dedupeTextList(Array.isArray(previousContext.asked_questions) ? previousContext.asked_questions : []),
     known_facts: knownFacts,
     clarified_fields: clarifiedFields,
+    conversation_memory: conversationMemory,
   };
 }
 
@@ -603,8 +610,8 @@ export default function ChatPage() {
       top_k: workContext.top_k,
       facts: USE_EXPEDIENT_CONTEXT ? { ...(payload.facts || {}), ...(expedienteContext.facts || {}) } : { ...(payload.facts || {}) },
       metadata: USE_EXPEDIENT_CONTEXT
-        ? { ...(payload.metadata || {}), ...(expedienteContext.metadata || {}), ...(clarificationContext ? { clarification_context: clarificationContext } : {}), session_id: currentSessionId }
-        : { ...(payload.metadata || {}), ...(clarificationContext ? { clarification_context: clarificationContext } : {}), session_id: currentSessionId },
+        ? { ...(payload.metadata || {}), ...(expedienteContext.metadata || {}), ...(clarificationContext ? { clarification_context: clarificationContext } : {}), session_id: currentSessionId, conversation_id: currentSessionId }
+        : { ...(payload.metadata || {}), ...(clarificationContext ? { clarification_context: clarificationContext } : {}), session_id: currentSessionId, conversation_id: currentSessionId },
     };
 
     startTransition(() => {
