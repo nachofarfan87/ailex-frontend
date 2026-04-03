@@ -502,8 +502,8 @@ export function adaptLegalResultForDisplay(response) {
   const mode = shouldAskFirst ? 'clarification' : 'advice';
   const modeLabel = shouldAskFirst ? 'Aclaracion breve' : 'Orientacion inicial';
   const modeDescription = shouldAskFirst
-    ? 'AILEX necesita confirmar un punto para que la orientacion visible refleje mejor tu caso.'
-    : 'AILEX ya tiene una base suficiente para orientarte con mas detalle.';
+    ? 'Necesito confirmar un punto antes de darte una orientacion mas ajustada a tu caso.'
+    : 'Con lo que me contaste, tengo suficiente para darte una orientacion concreta.';
 
   const primaryClarifications = shouldAskFirst
     ? criticalCompletenessItems.length

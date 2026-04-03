@@ -77,7 +77,7 @@ export default function ConversationalStateBlock({
           <h4 className={styles.conversationHeroTitle}>
             {hasQuestion && isClarification
               ? 'Para seguir, necesito confirmar este punto'
-              : 'Estado de la consulta'}
+              : 'Lo que veo hasta ahora'}
           </h4>
         </div>
         {display.modeDescription ? (

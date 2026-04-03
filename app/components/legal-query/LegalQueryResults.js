@@ -159,7 +159,7 @@ export default function LegalQueryResults({
           >
             <div className={styles.heroAnswerHead}>
               <span className={styles.heroAnswerEyebrow}>
-                {isClarificationMode ? 'Contexto util mientras aclaramos' : 'Analisis disponible'}
+                {isClarificationMode ? 'Contexto util mientras aclaramos' : 'Lo que surge de tu caso'}
               </span>
             </div>
             <p className={styles.heroAnswerText}>
