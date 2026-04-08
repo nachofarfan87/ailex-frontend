@@ -32,3 +32,40 @@ test('normalizeLegalQueryResponse no serializa next_step object como [object Obj
   assert.equal(normalized.conversational_response.primary_question, 'Pregunta real?');
   assert.equal(normalized.conversational_response.messages[0].text, 'Pregunta real?');
 });
+
+test('normalizeLegalQueryResponse preserva case_progress y su narrativa para la UI', () => {
+  const normalized = normalizeLegalQueryResponse({
+    case_progress: {
+      stage: 'decision',
+      readiness_level: 0.71,
+      readiness_label: 'high',
+      progress_status: 'advancing',
+      next_step_type: 'decide',
+      critical_gaps: [],
+      important_gaps: [{ key: 'jurisdiccion', label: 'jurisdiccion relevante' }],
+      blocking_issues: [],
+      contradictions: [],
+      contradiction_count: 0,
+      basis: { confirmed_fact_count: 4 },
+    },
+    case_progress_snapshot: {
+      stage: 'decision',
+      next_step_type: 'decide',
+    },
+    case_progress_narrative: {
+      applies: true,
+      progress_block: 'Ya hay una base suficiente para definir la via principal.',
+      priority_block: 'Lo siguiente mas util es definir la jurisdiccion.',
+    },
+  });
+
+  assert.equal(normalized.case_progress.stage, 'decision');
+  assert.equal(normalized.case_progress.next_step_type, 'decide');
+  assert.equal(normalized.case_progress.important_gaps[0].key, 'jurisdiccion');
+  assert.equal(normalized.case_progress_snapshot.stage, 'decision');
+  assert.equal(normalized.case_progress_narrative.applies, true);
+  assert.equal(
+    normalized.case_progress_narrative.priority_block,
+    'Lo siguiente mas util es definir la jurisdiccion.',
+  );
+});

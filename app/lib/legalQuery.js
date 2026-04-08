@@ -67,6 +67,7 @@ function normalizeCaseCompleteness(value) {
     missing_critical: asArray(safeValue.missing_critical),
     missing_optional: asArray(safeValue.missing_optional),
     confidence_level: String(safeValue.confidence_level || ''),
+    known_count: typeof safeValue.known_count === 'number' ? safeValue.known_count : 0,
   };
 }
 
@@ -108,6 +109,179 @@ function normalizeConversationalResponse(value) {
   };
 }
 
+function normalizeCaseProgress(value) {
+  const safeValue = asObject(value);
+  const basis = asObject(safeValue.basis);
+  return {
+    stage: String(safeValue.stage || '').trim(),
+    readiness_level:
+      typeof safeValue.readiness_level === 'number' ? safeValue.readiness_level : null,
+    readiness_label: String(safeValue.readiness_label || '').trim(),
+    progress_status: String(safeValue.progress_status || '').trim(),
+    next_step_type: String(safeValue.next_step_type || '').trim(),
+    blocking_issues: asArray(safeValue.blocking_issues),
+    critical_gaps: asArray(safeValue.critical_gaps),
+    important_gaps: asArray(safeValue.important_gaps),
+    contradictions: asArray(safeValue.contradictions),
+    contradiction_count:
+      typeof safeValue.contradiction_count === 'number' ? safeValue.contradiction_count : 0,
+    has_contradictions: Boolean(safeValue.has_contradictions),
+    progress_delta: String(safeValue.progress_delta || '').trim(),
+    basis,
+  };
+}
+
+function normalizeCaseProgressNarrative(value) {
+  const safeValue = asObject(value);
+  return {
+    applies: Boolean(safeValue.applies),
+    opening: extractDisplayText(safeValue.opening),
+    known_block: extractDisplayText(safeValue.known_block),
+    contradiction_block: extractDisplayText(safeValue.contradiction_block),
+    missing_block: extractDisplayText(safeValue.missing_block),
+    progress_block: extractDisplayText(safeValue.progress_block),
+    priority_block: extractDisplayText(safeValue.priority_block),
+  };
+}
+
+function normalizeCaseWorkspaceFact(value) {
+  const safeValue = asObject(value);
+  return {
+    key: String(safeValue.key || '').trim(),
+    label: extractDisplayText(safeValue.label),
+    value: safeValue.value,
+    source: String(safeValue.source || '').trim(),
+    confidence:
+      typeof safeValue.confidence === 'number' ? safeValue.confidence : null,
+    category: String(safeValue.category || '').trim(),
+    priority: String(safeValue.priority || '').trim(),
+    purpose: String(safeValue.purpose || '').trim(),
+  };
+}
+
+function normalizeCaseWorkspaceConflict(value) {
+  const safeValue = asObject(value);
+  return {
+    key: String(safeValue.key || '').trim(),
+    label: extractDisplayText(safeValue.label),
+    prev_value: safeValue.prev_value,
+    new_value: safeValue.new_value,
+    detected_at:
+      typeof safeValue.detected_at === 'number' ? safeValue.detected_at : null,
+  };
+}
+
+function normalizeCaseWorkspaceAction(value) {
+  const safeValue = asObject(value);
+  return {
+    id: String(safeValue.id || '').trim(),
+    step_id: String(safeValue.step_id || safeValue.id || '').trim(),
+    title: extractDisplayText(safeValue.title),
+    description: extractDisplayText(safeValue.description),
+    priority: String(safeValue.priority || '').trim(),
+    status: String(safeValue.status || '').trim(),
+    is_primary: Boolean(safeValue.is_primary),
+    phase: String(safeValue.phase || '').trim(),
+    phase_label: extractDisplayText(safeValue.phase_label),
+    blocked_by_missing_info: Boolean(safeValue.blocked_by_missing_info),
+    why_now: extractDisplayText(safeValue.why_now),
+    depends_on: asArray(safeValue.depends_on).map((item) => String(item || '').trim()).filter(Boolean),
+    why_it_matters: extractDisplayText(safeValue.why_it_matters),
+    source_hint: extractDisplayText(safeValue.source_hint),
+  };
+}
+
+function normalizeCaseWorkspaceEvidenceItem(value) {
+  const safeValue = asObject(value);
+  return {
+    key: String(safeValue.key || '').trim(),
+    label: extractDisplayText(safeValue.label),
+    description: extractDisplayText(safeValue.description),
+    reason: extractDisplayText(safeValue.reason),
+    missing_level: String(safeValue.missing_level || '').trim(),
+    priority_rank:
+      typeof safeValue.priority_rank === 'number' ? safeValue.priority_rank : 0,
+    evidence_role: String(safeValue.evidence_role || '').trim(),
+    why_it_matters: extractDisplayText(safeValue.why_it_matters),
+    resolves: asArray(safeValue.resolves).map((item) => String(item || '').trim()).filter(Boolean),
+    supports_step: String(safeValue.supports_step || '').trim(),
+  };
+}
+
+function normalizeCaseWorkspaceEvidenceChecklist(value) {
+  const safeValue = asObject(value);
+  return {
+    critical: asArray(safeValue.critical).map(normalizeCaseWorkspaceEvidenceItem),
+    recommended: asArray(safeValue.recommended).map(normalizeCaseWorkspaceEvidenceItem),
+    optional: asArray(safeValue.optional).map(normalizeCaseWorkspaceEvidenceItem),
+  };
+}
+
+function normalizeProfessionalHandoff(value) {
+  const safeValue = asObject(value);
+  return {
+    ready_for_professional_review: Boolean(safeValue.ready_for_professional_review),
+    status: String(safeValue.status || '').trim(),
+    review_readiness: String(safeValue.review_readiness || '').trim(),
+    handoff_reason: extractDisplayText(safeValue.handoff_reason),
+    primary_friction: extractDisplayText(safeValue.primary_friction),
+    recommended_professional_focus: extractDisplayText(
+      safeValue.recommended_professional_focus,
+    ),
+    professional_entry_point: extractDisplayText(safeValue.professional_entry_point),
+    suggested_focus: extractDisplayText(safeValue.suggested_focus),
+    open_items: asArray(safeValue.open_items).map(extractDisplayText).filter(Boolean),
+    next_question: extractDisplayText(safeValue.next_question),
+    summary_for_professional: extractDisplayText(safeValue.summary_for_professional),
+  };
+}
+
+function normalizeCaseWorkspace(value) {
+  const safeValue = asObject(value);
+  const strategySnapshot = asObject(safeValue.strategy_snapshot);
+
+  return {
+    case_id: String(safeValue.case_id || '').trim(),
+    workspace_version: String(safeValue.workspace_version || '').trim(),
+    case_status: String(safeValue.case_status || '').trim(),
+    case_status_label: extractDisplayText(safeValue.case_status_label),
+    case_status_helper: extractDisplayText(safeValue.case_status_helper),
+    operating_phase: String(safeValue.operating_phase || '').trim(),
+    recommended_phase: String(safeValue.recommended_phase || '').trim(),
+    recommended_phase_label: extractDisplayText(safeValue.recommended_phase_label),
+    operating_phase_reason: extractDisplayText(safeValue.operating_phase_reason),
+    primary_focus: asObject(safeValue.primary_focus),
+    case_summary: extractDisplayText(safeValue.case_summary),
+    facts_confirmed: asArray(safeValue.facts_confirmed).map(normalizeCaseWorkspaceFact),
+    facts_missing: asArray(safeValue.facts_missing).map(normalizeCaseWorkspaceFact),
+    facts_conflicting: asArray(safeValue.facts_conflicting).map(normalizeCaseWorkspaceConflict),
+    strategy_snapshot: {
+      strategy_mode: String(strategySnapshot.strategy_mode || '').trim(),
+      response_goal: extractDisplayText(strategySnapshot.response_goal),
+      reason: extractDisplayText(strategySnapshot.reason),
+      output_mode: String(strategySnapshot.output_mode || '').trim(),
+      recommended_tone: String(strategySnapshot.recommended_tone || '').trim(),
+      recommended_structure: String(strategySnapshot.recommended_structure || '').trim(),
+      allow_followup: Boolean(strategySnapshot.allow_followup),
+      prioritize_action: Boolean(strategySnapshot.prioritize_action),
+    },
+    action_plan: asArray(safeValue.action_plan).map(normalizeCaseWorkspaceAction),
+    evidence_checklist: normalizeCaseWorkspaceEvidenceChecklist(safeValue.evidence_checklist),
+    risk_alerts: asArray(safeValue.risk_alerts).map((item) => {
+      const safeItem = asObject(item);
+      return {
+        type: String(safeItem.type || '').trim(),
+        severity: String(safeItem.severity || '').trim(),
+        message: extractDisplayText(safeItem.message),
+        source: String(safeItem.source || '').trim(),
+      };
+    }),
+    recommended_next_question: extractDisplayText(safeValue.recommended_next_question),
+    professional_handoff: normalizeProfessionalHandoff(safeValue.professional_handoff),
+    last_updated_at: String(safeValue.last_updated_at || '').trim(),
+  };
+}
+
 export function normalizeLegalQueryResponse(payload = {}) {
   const safePayload = asObject(payload);
   const reasoning = asObject(safePayload.reasoning);
@@ -119,6 +293,11 @@ export function normalizeLegalQueryResponse(payload = {}) {
   const caseStrategy = asObject(safePayload.case_strategy || legalStrategy.case_strategy);
   const normativeReasoning = asObject(safePayload.normative_reasoning);
   const outputModes = asObject(safePayload.output_modes);
+  const caseProgress = normalizeCaseProgress(safePayload.case_progress);
+  const caseProgressSnapshot = asObject(safePayload.case_progress_snapshot);
+  const caseProgressNarrative = normalizeCaseProgressNarrative(
+    safePayload.case_progress_narrative,
+  );
 
   const caseDomain = String(
     safePayload.case_domain || legalStrategy.case_domain || caseProfile.case_domain || '',
@@ -204,6 +383,10 @@ export function normalizeLegalQueryResponse(payload = {}) {
     },
     conversational: normalizeConversational(safePayload.conversational),
     conversational_response: normalizeConversationalResponse(safePayload.conversational_response),
+    case_progress: caseProgress,
+    case_progress_snapshot: caseProgressSnapshot,
+    case_progress_narrative: caseProgressNarrative,
+    case_workspace: normalizeCaseWorkspace(safePayload.case_workspace),
     response_text: String(safePayload.response_text || ''),
     quick_start: String(safePayload.quick_start || ''),
     visible_summary: summaryText,

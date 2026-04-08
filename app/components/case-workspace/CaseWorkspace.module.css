@@ -1,0 +1,379 @@
+.panel {
+  display: grid;
+  gap: 16px;
+  padding: 18px 20px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.008)),
+    rgba(10, 14, 21, 0.96);
+}
+
+.header,
+.headerMeta,
+.sectionHeader,
+.actionHeader,
+.handoffHeader,
+.factRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.headerCopy,
+.section,
+.actions,
+.actionCard,
+.evidenceColumn,
+.handoffCard,
+.miniCard,
+.emptyState {
+  display: grid;
+  gap: 10px;
+}
+
+.eyebrow,
+.sectionEyebrow,
+.miniLabel,
+.actionMeta,
+.bucketLabel,
+.handoffLabel,
+.questionLabel {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.eyebrow,
+.sectionEyebrow,
+.miniLabel,
+.bucketLabel,
+.handoffLabel,
+.questionLabel {
+  color: #9ca6b8;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.12rem;
+  line-height: 1.24;
+  color: var(--text-primary);
+}
+
+.summary,
+.helper,
+.miniText,
+.actionDescription,
+.actionWhy,
+.evidenceReason,
+.handoffText,
+.questionText,
+.listItem,
+.timestamp {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.68;
+}
+
+.summary {
+  font-size: 0.98rem;
+  color: var(--text-primary);
+}
+
+.helper {
+  font-size: 0.9rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 12px;
+}
+
+.miniGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.miniCard,
+.evidenceColumn,
+.handoffCard,
+.questionCard {
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.miniCardAccent {
+  background:
+    linear-gradient(180deg, rgba(200, 160, 98, 0.06), rgba(255, 255, 255, 0.008)),
+    rgba(255, 255, 255, 0.03);
+  border-color: rgba(200, 160, 98, 0.16);
+}
+
+.miniCardWarning {
+  background:
+    linear-gradient(180deg, rgba(213, 163, 91, 0.06), rgba(255, 255, 255, 0.008)),
+    rgba(255, 255, 255, 0.03);
+  border-color: rgba(213, 163, 91, 0.16);
+}
+
+.list,
+.actionList,
+.bucketList,
+.inlineList {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.listItem {
+  position: relative;
+  padding-left: 14px;
+  font-size: 0.92rem;
+}
+
+.listItem::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(200, 160, 98, 0.5);
+}
+
+.factLabel {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.factValue {
+  color: var(--text-secondary);
+}
+
+.factTagRow,
+.actionTagRow,
+.metaRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.tag,
+.priorityTag,
+.statusTag,
+.countTag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tag,
+.countTag {
+  color: #d5dde9;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.priorityHigh,
+.statusPending {
+  color: #f5deaf;
+  background: rgba(200, 160, 98, 0.14);
+  border-color: rgba(200, 160, 98, 0.22);
+}
+
+.priorityMedium,
+.statusBlocked {
+  color: #f0d9a7;
+  background: rgba(213, 163, 91, 0.12);
+  border-color: rgba(213, 163, 91, 0.2);
+}
+
+.priorityLow,
+.statusDone {
+  color: #cfe2c9;
+  background: rgba(113, 173, 120, 0.14);
+  border-color: rgba(113, 173, 120, 0.22);
+}
+
+.statusBlocked {
+  color: #ffc9c2;
+  background: rgba(213, 114, 103, 0.12);
+  border-color: rgba(213, 114, 103, 0.18);
+}
+
+.actionCard {
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.022), rgba(255, 255, 255, 0.008)),
+    rgba(255, 255, 255, 0.028);
+}
+
+.actionTitle,
+.bucketTitle,
+.handoffTitle {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.actionTitle {
+  font-size: 0.98rem;
+  line-height: 1.4;
+}
+
+.bucketTitle,
+.handoffTitle {
+  font-size: 0.94rem;
+  line-height: 1.35;
+}
+
+.actionDescription,
+.actionWhy,
+.evidenceReason,
+.handoffText,
+.questionText {
+  font-size: 0.9rem;
+}
+
+.overflowLink {
+  font-size: 0.82rem;
+  color: #8d97aa;
+}
+
+.evidenceGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.criticalColumn {
+  border-color: rgba(213, 114, 103, 0.16);
+  background:
+    linear-gradient(180deg, rgba(213, 114, 103, 0.045), rgba(255, 255, 255, 0.008)),
+    rgba(255, 255, 255, 0.03);
+}
+
+.recommendedColumn {
+  border-color: rgba(200, 160, 98, 0.16);
+  background:
+    linear-gradient(180deg, rgba(200, 160, 98, 0.045), rgba(255, 255, 255, 0.008)),
+    rgba(255, 255, 255, 0.03);
+}
+
+.optionalColumn {
+  border-color: rgba(110, 140, 255, 0.16);
+  background:
+    linear-gradient(180deg, rgba(110, 140, 255, 0.045), rgba(255, 255, 255, 0.008)),
+    rgba(255, 255, 255, 0.03);
+}
+
+.bucketLabelCritical {
+  color: #ffc9c2;
+}
+
+.bucketLabelRecommended {
+  color: #f5deaf;
+}
+
+.bucketLabelOptional {
+  color: #d8e0ff;
+}
+
+.riskList {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.riskItem {
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(213, 114, 103, 0.15);
+  background: rgba(213, 114, 103, 0.08);
+  color: #f3d6d2;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.questionCard {
+  background:
+    linear-gradient(180deg, rgba(110, 140, 255, 0.05), rgba(255, 255, 255, 0.008)),
+    rgba(255, 255, 255, 0.03);
+  border-color: rgba(110, 140, 255, 0.16);
+}
+
+.emptyState {
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.emptyText {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: #98a1b2;
+}
+
+.details {
+  border: none;
+}
+
+.detailsSummary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #8d97aa;
+}
+
+.detailsSummary::-webkit-details-marker {
+  display: none;
+}
+
+.timestamp {
+  font-size: 0.82rem;
+}
+
+@media (max-width: 980px) {
+  .grid,
+  .evidenceGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .miniGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .header,
+  .headerMeta,
+  .sectionHeader,
+  .actionHeader,
+  .handoffHeader,
+  .factRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

@@ -57,6 +57,7 @@ export default function ConversationalStateBlock({
 }) {
   const conversational = display?.conversational || {};
   const caseProgress = conversational.caseProgress || null;
+  const caseProgressSnapshot = conversational.caseProgressSnapshot || null;
   const isClarification = conversational.should_ask_first;
   const hasQuestion = Boolean(conversational.question);
   const statusClass = isClarification
@@ -119,7 +120,7 @@ export default function ConversationalStateBlock({
         </div>
       )}
 
-      {caseProgress ? (
+      {caseProgress && !caseProgressSnapshot ? (
         <div className={styles.progressContainer}>
           <div className={styles.progressHead}>
             <p className={styles.progressTitle}>

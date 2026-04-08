@@ -2,6 +2,8 @@
 'use client';
 
 import styles from './LegalQuery.module.css';
+import CaseWorkspacePanel from '../case-workspace/CaseWorkspacePanel';
+import CaseProgressSnapshot from './CaseProgressSnapshot';
 import ConversationalChat from './ConversationalChat';
 import ConversationalStateBlock from './ConversationalStateBlock';
 import LegalQueryExportActions from './LegalQueryExportActions';
@@ -99,6 +101,13 @@ export default function LegalQueryResults({
 
   const hasNormative = display.normativeItems.length > 0;
   const hasWarnings = warnings.length > 0 || normalized.hallucination_guard?.is_safe === false;
+  const showCaseProgressSnapshot = Boolean(display.conversational.caseProgressSnapshot) && (
+    !display.caseWorkspace?.shouldRenderPanel || isClarificationMode
+  );
+  const showCaseWorkspace =
+    display.caseWorkspace?.available &&
+    display.caseWorkspace?.shouldRenderPanel &&
+    (!isClarificationMode || display.caseWorkspace?.showDuringClarification);
 
   return (
     <article className={styles.assistantCard}>
@@ -137,6 +146,14 @@ export default function LegalQueryResults({
       </header>
 
       <LegalQueryExportActions response={normalized} requestContext={requestContext} />
+
+      {showCaseWorkspace ? (
+        <CaseWorkspacePanel workspace={display.caseWorkspace} />
+      ) : null}
+
+      {!showCaseWorkspace && showCaseProgressSnapshot ? (
+        <CaseProgressSnapshot snapshot={display.conversational.caseProgressSnapshot} />
+      ) : null}
 
       {hasConversationalChat ? (
         <ConversationalChat
@@ -213,6 +230,15 @@ export default function LegalQueryResults({
           </div>
         </>
       )}
+
+      {showCaseWorkspace && showCaseProgressSnapshot ? (
+        <details className={styles.disclosure}>
+          <summary className={styles.disclosureSummary}>Ver estado detallado y progreso del caso</summary>
+          <div className={styles.disclosureBody}>
+            <CaseProgressSnapshot snapshot={display.conversational.caseProgressSnapshot} />
+          </div>
+        </details>
+      ) : null}
 
       {hasNormative ? (
         <details className={styles.disclosure}>

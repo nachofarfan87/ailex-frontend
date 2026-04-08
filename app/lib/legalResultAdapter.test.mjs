@@ -296,3 +296,725 @@ test('Full display output never contains [object Object]', () => {
   const serialized = JSON.stringify(display);
   assert.ok(!serialized.includes('[object Object]'), `Found [object Object] in: ${serialized.slice(0, 500)}`);
 });
+
+test('adaptLegalResultForDisplay construye snapshot de caso desde case_progress real', () => {
+  const display = adaptLegalResultForDisplay({
+    case_domain: 'alimentos',
+    conversational: {
+      message: 'Hay base suficiente para orientar.',
+      should_ask_first: false,
+      known_facts: {
+        hay_hijos: true,
+        convenio_regulador: true,
+      },
+      case_completeness: {
+        is_complete: false,
+        missing_critical: [],
+        missing_optional: ['urgencia'],
+        known_count: 2,
+      },
+    },
+    case_progress: {
+      stage: 'decision',
+      readiness_level: 0.73,
+      readiness_label: 'high',
+      progress_status: 'advancing',
+      next_step_type: 'decide',
+      critical_gaps: [],
+      important_gaps: [
+        { key: 'jurisdiccion', label: 'la jurisdiccion relevante', purpose: 'procesal' },
+      ],
+      blocking_issues: [],
+      contradictions: [],
+      contradiction_count: 0,
+    },
+    case_progress_narrative: {
+      applies: true,
+      progress_block: 'Ya hay una base suficiente para definir la via principal.',
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  const snapshot = display.conversational.caseProgressSnapshot;
+
+  assert.ok(snapshot);
+  assert.equal(snapshot.stage, 'decision');
+  assert.equal(snapshot.stageLabel, 'Definiendo la estrategia');
+  assert.equal(snapshot.nextStepType, 'decide');
+  assert.equal(snapshot.importantGaps[0].label, 'la jurisdiccion relevante');
+  assert.ok(snapshot.percentage >= 70);
+});
+
+test('adaptLegalResultForDisplay vuelve mas prudente la ejecucion con contradicciones o gaps visibles', () => {
+  const display = adaptLegalResultForDisplay({
+    case_domain: 'divorcio',
+    conversational: {
+      message: 'Se puede avanzar con cautela.',
+      should_ask_first: false,
+      known_facts: { hay_hijos: true },
+      case_completeness: {
+        is_complete: false,
+        missing_critical: ['jurisdiccion'],
+        missing_optional: [],
+        known_count: 1,
+      },
+    },
+    case_progress: {
+      stage: 'ejecucion',
+      readiness_level: 0.81,
+      readiness_label: 'high',
+      progress_status: 'ready',
+      next_step_type: 'execute',
+      critical_gaps: [{ key: 'jurisdiccion', label: 'la jurisdiccion relevante' }],
+      important_gaps: [],
+      blocking_issues: [],
+      contradictions: [],
+      contradiction_count: 0,
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  const snapshot = display.conversational.caseProgressSnapshot;
+
+  assert.ok(snapshot.summary.includes('dato sensible') || snapshot.summary.includes('consolidar'));
+  assert.equal(snapshot.nextStepType, 'execute');
+  assert.equal(snapshot.statusTone, 'warning');
+  assert.equal(snapshot.criticalGaps[0].label, 'la jurisdiccion relevante');
+});
+
+test('adaptLegalResultForDisplay agrega justificacion del proximo paso cuando hay follow-up', () => {
+  const display = adaptLegalResultForDisplay({
+    case_domain: 'divorcio',
+    conversational: {
+      message: 'Necesito confirmar un punto.',
+      question: '¿En qué provincia o jurisdicción tramitarías esto?',
+      should_ask_first: true,
+      known_facts: { hay_hijos: true },
+      case_completeness: {
+        is_complete: false,
+        missing_critical: ['jurisdiccion'],
+        missing_optional: [],
+        known_count: 1,
+      },
+    },
+    case_progress: {
+      stage: 'decision',
+      readiness_level: 0.62,
+      readiness_label: 'medium',
+      progress_status: 'stalled',
+      next_step_type: 'ask',
+      critical_gaps: [{ key: 'jurisdiccion', label: 'la jurisdiccion relevante' }],
+      important_gaps: [],
+      blocking_issues: [],
+      contradictions: [],
+      contradiction_count: 0,
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  const snapshot = display.conversational.caseProgressSnapshot;
+
+  assert.ok(snapshot.nextStepReason);
+  assert.ok(snapshot.nextStepReason.includes('avanzar') || snapshot.nextStepReason.includes('errores'));
+  assert.equal(
+    snapshot.questionTargetHint,
+    'Esta pregunta apunta a definir la jurisdiccion relevante.',
+  );
+});
+
+test('adaptLegalResultForDisplay marca warning en caso inconsistente con contradicciones', () => {
+  const display = adaptLegalResultForDisplay({
+    case_domain: 'alimentos',
+    conversational: {
+      message: 'Antes de seguir conviene aclarar un punto.',
+      should_ask_first: true,
+      question: '¿Cuál es el domicilio relevante para este caso?',
+      known_facts: { hay_hijos: true },
+      case_completeness: {
+        is_complete: false,
+        missing_critical: [],
+        missing_optional: [],
+        known_count: 1,
+      },
+    },
+    case_progress: {
+      stage: 'inconsistente',
+      readiness_level: 0.34,
+      readiness_label: 'low',
+      progress_status: 'blocked',
+      next_step_type: 'resolve_contradiction',
+      critical_gaps: [],
+      important_gaps: [],
+      blocking_issues: [{ type: 'contradictions', severity: 'high', reason: 'informacion inconsistente' }],
+      contradictions: [
+        { key: 'domicilio_relevante', prev_value: 'Jujuy', new_value: 'Salta' },
+      ],
+      contradiction_count: 1,
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  const snapshot = display.conversational.caseProgressSnapshot;
+
+  assert.equal(snapshot.statusTone, 'warning');
+  assert.ok(snapshot.nextStepReason.includes('contradictoria') || snapshot.nextStepReason.includes('resolver'));
+});
+
+test('focusLabel prioriza contradicciones', () => {
+  const display = adaptLegalResultForDisplay({
+    conversational: {
+      should_ask_first: true,
+      question: '¿Cuál es el dato correcto?',
+      known_facts: {},
+      case_completeness: { is_complete: false, missing_critical: [], missing_optional: [], known_count: 0 },
+    },
+    case_progress: {
+      stage: 'inconsistente',
+      readiness_label: 'low',
+      progress_status: 'blocked',
+      next_step_type: 'resolve_contradiction',
+      contradictions: [{ key: 'domicilio_relevante', prev_value: 'Jujuy', new_value: 'Salta' }],
+      contradiction_count: 1,
+      critical_gaps: [],
+      important_gaps: [],
+      blocking_issues: [],
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(
+    display.conversational.caseProgressSnapshot.focusLabel,
+    'Antes de avanzar, conviene resolver una inconsistencia.',
+  );
+});
+
+test('focusLabel prioriza critical gaps sobre stage optimista', () => {
+  const display = adaptLegalResultForDisplay({
+    conversational: {
+      should_ask_first: true,
+      question: '¿En qué provincia tramitarías esto?',
+      known_facts: {},
+      case_completeness: { is_complete: false, missing_critical: ['jurisdiccion'], missing_optional: [], known_count: 0 },
+    },
+    case_progress: {
+      stage: 'ejecucion',
+      readiness_label: 'high',
+      progress_status: 'ready',
+      next_step_type: 'execute',
+      contradictions: [],
+      contradiction_count: 0,
+      critical_gaps: [{ key: 'jurisdiccion', label: 'la jurisdiccion relevante' }],
+      important_gaps: [],
+      blocking_issues: [],
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(
+    display.conversational.caseProgressSnapshot.focusLabel,
+    'Lo mas importante ahora es completar los datos clave del caso.',
+  );
+});
+
+test('focusLabel refleja decision sin gaps criticos', () => {
+  const display = adaptLegalResultForDisplay({
+    conversational: {
+      should_ask_first: false,
+      known_facts: { hay_hijos: true },
+      case_completeness: { is_complete: false, missing_critical: [], missing_optional: [], known_count: 1 },
+    },
+    case_progress: {
+      stage: 'decision',
+      readiness_label: 'high',
+      progress_status: 'advancing',
+      next_step_type: 'decide',
+      contradictions: [],
+      contradiction_count: 0,
+      critical_gaps: [],
+      important_gaps: [{ key: 'jurisdiccion', label: 'la jurisdiccion relevante' }],
+      blocking_issues: [],
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.conversational.caseProgressSnapshot.focusLabel, '');
+});
+
+test('focusLabel refleja ejecucion sin bloqueo', () => {
+  const display = adaptLegalResultForDisplay({
+    conversational: {
+      should_ask_first: false,
+      known_facts: { hay_hijos: true },
+      case_completeness: { is_complete: true, missing_critical: [], missing_optional: [], known_count: 1 },
+    },
+    case_progress: {
+      stage: 'ejecucion',
+      readiness_label: 'high',
+      progress_status: 'ready',
+      next_step_type: 'execute',
+      contradictions: [],
+      contradiction_count: 0,
+      critical_gaps: [],
+      important_gaps: [],
+      blocking_issues: [],
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.conversational.caseProgressSnapshot.focusLabel, '');
+});
+
+test('primaryGap prioriza critical gap sobre important gap', () => {
+  const display = adaptLegalResultForDisplay({
+    conversational: {
+      should_ask_first: true,
+      question: '¿En qué provincia tramitarías esto?',
+      known_facts: {},
+      case_completeness: { is_complete: false, missing_critical: ['jurisdiccion'], missing_optional: [], known_count: 0 },
+    },
+    case_progress: {
+      stage: 'decision',
+      readiness_label: 'medium',
+      progress_status: 'stalled',
+      next_step_type: 'ask',
+      contradictions: [],
+      contradiction_count: 0,
+      critical_gaps: [{ key: 'jurisdiccion', label: 'la jurisdiccion relevante' }],
+      important_gaps: [{ key: 'monto_estimado', label: 'el monto estimado' }],
+      blocking_issues: [],
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(
+    display.conversational.caseProgressSnapshot.primaryGap.label,
+    'la jurisdiccion relevante',
+  );
+});
+
+test('anti redundancia suprime nextStepReason cuando repite el foco', () => {
+  const display = adaptLegalResultForDisplay({
+    conversational: {
+      should_ask_first: false,
+      known_facts: { hay_hijos: true },
+      case_completeness: { is_complete: true, missing_critical: [], missing_optional: [], known_count: 1 },
+    },
+    case_progress: {
+      stage: 'decision',
+      readiness_label: 'high',
+      progress_status: 'advancing',
+      next_step_type: 'decide',
+      contradictions: [],
+      contradiction_count: 0,
+      critical_gaps: [],
+      important_gaps: [],
+      blocking_issues: [],
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  const snapshot = display.conversational.caseProgressSnapshot;
+
+  assert.equal(snapshot.focusLabel, '');
+  assert.equal(snapshot.nextStepReason, '');
+});
+
+test('caseDirection prioriza contradicciones', () => {
+  const display = adaptLegalResultForDisplay({
+    conversational: {
+      should_ask_first: true,
+      question: '¿Cuál es el dato correcto?',
+      known_facts: {},
+      case_completeness: { is_complete: false, missing_critical: [], missing_optional: [], known_count: 0 },
+    },
+    case_progress: {
+      stage: 'inconsistente',
+      readiness_label: 'low',
+      progress_status: 'blocked',
+      next_step_type: 'resolve_contradiction',
+      contradictions: [{ key: 'domicilio_relevante', prev_value: 'Jujuy', new_value: 'Salta' }],
+      contradiction_count: 1,
+      critical_gaps: [],
+      important_gaps: [],
+      blocking_issues: [],
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(
+    display.conversational.caseProgressSnapshot.caseDirection,
+    'Antes de avanzar, es clave resolver las inconsistencias del caso.',
+  );
+});
+
+test('caseDirection prioriza critical gaps', () => {
+  const display = adaptLegalResultForDisplay({
+    conversational: {
+      should_ask_first: true,
+      question: '¿En qué provincia tramitarías esto?',
+      known_facts: {},
+      case_completeness: { is_complete: false, missing_critical: ['jurisdiccion'], missing_optional: [], known_count: 0 },
+    },
+    case_progress: {
+      stage: 'ejecucion',
+      readiness_label: 'high',
+      progress_status: 'ready',
+      next_step_type: 'execute',
+      contradictions: [],
+      contradiction_count: 0,
+      critical_gaps: [{ key: 'jurisdiccion', label: 'la jurisdiccion relevante' }],
+      important_gaps: [],
+      blocking_issues: [],
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(
+    display.conversational.caseProgressSnapshot.caseDirection,
+    'El foco ahora esta en completar la informacion necesaria para poder avanzar con seguridad.',
+  );
+});
+
+test('caseDirection refleja decision', () => {
+  const display = adaptLegalResultForDisplay({
+    conversational: {
+      should_ask_first: false,
+      known_facts: { hay_hijos: true },
+      case_completeness: { is_complete: false, missing_critical: [], missing_optional: [], known_count: 1 },
+    },
+    case_progress: {
+      stage: 'decision',
+      readiness_label: 'high',
+      progress_status: 'advancing',
+      next_step_type: 'decide',
+      contradictions: [],
+      contradiction_count: 0,
+      critical_gaps: [],
+      important_gaps: [],
+      blocking_issues: [],
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(
+    display.conversational.caseProgressSnapshot.caseDirection,
+    'El caso ya tiene base suficiente para evaluar opciones y tomar una decision.',
+  );
+});
+
+test('caseDirection refleja ejecucion', () => {
+  const display = adaptLegalResultForDisplay({
+    conversational: {
+      should_ask_first: false,
+      known_facts: { hay_hijos: true },
+      case_completeness: { is_complete: true, missing_critical: [], missing_optional: [], known_count: 1 },
+    },
+    case_progress: {
+      stage: 'ejecucion',
+      readiness_label: 'high',
+      progress_status: 'ready',
+      next_step_type: 'execute',
+      contradictions: [],
+      contradiction_count: 0,
+      critical_gaps: [],
+      important_gaps: [],
+      blocking_issues: [],
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(
+    display.conversational.caseProgressSnapshot.caseDirection,
+    'El caso esta listo para avanzar con acciones concretas.',
+  );
+});
+
+test('follow-up se conecta semanticamente con la direccion del caso', () => {
+  const display = adaptLegalResultForDisplay({
+    conversational: {
+      message: 'Necesito confirmar un punto.',
+      question: '¿En qué provincia o jurisdicción tramitarías esto?',
+      should_ask_first: true,
+      known_facts: { hay_hijos: true },
+      case_completeness: {
+        is_complete: false,
+        missing_critical: ['jurisdiccion'],
+        missing_optional: [],
+        known_count: 1,
+      },
+    },
+    case_progress: {
+      stage: 'decision',
+      readiness_level: 0.62,
+      readiness_label: 'medium',
+      progress_status: 'stalled',
+      next_step_type: 'ask',
+      critical_gaps: [{ key: 'jurisdiccion', label: 'la jurisdiccion relevante' }],
+      important_gaps: [],
+      blocking_issues: [],
+      contradictions: [],
+      contradiction_count: 0,
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  const snapshot = display.conversational.caseProgressSnapshot;
+
+  assert.ok(snapshot.caseDirection.includes('informacion necesaria'));
+  assert.equal(
+    snapshot.questionTargetHint,
+    'Esta pregunta apunta a definir la jurisdiccion relevante.',
+  );
+  assert.equal(
+    snapshot.followupDirectionHint,
+    'Esta pregunta sigue la direccion actual del caso y busca destrabar el punto prioritario.',
+  );
+});
+
+test('no hay redundancia excesiva entre caseDirection focus y nextStepReason', () => {
+  const display = adaptLegalResultForDisplay({
+    conversational: {
+      should_ask_first: false,
+      known_facts: { hay_hijos: true },
+      case_completeness: { is_complete: true, missing_critical: [], missing_optional: [], known_count: 1 },
+    },
+    case_progress: {
+      stage: 'decision',
+      readiness_label: 'high',
+      progress_status: 'advancing',
+      next_step_type: 'decide',
+      contradictions: [],
+      contradiction_count: 0,
+      critical_gaps: [],
+      important_gaps: [],
+      blocking_issues: [],
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  const snapshot = display.conversational.caseProgressSnapshot;
+
+  assert.equal(
+    snapshot.caseDirection,
+    'El caso ya tiene base suficiente para evaluar opciones y tomar una decision.',
+  );
+  assert.equal(snapshot.focusLabel, '');
+  assert.equal(snapshot.nextStepReason, '');
+});
+
+test('adaptLegalResultForDisplay construye un case workspace util para UI', () => {
+  const display = adaptLegalResultForDisplay({
+    case_domain: 'alimentos',
+    visible_summary: 'Resumen breve del caso.',
+    case_workspace: {
+      case_id: 'conv-123',
+      workspace_version: 'case_workspace_v1',
+      case_status: 'needs_information',
+      case_summary: 'Caso de alimentos con base inicial y un dato critico pendiente.',
+      facts_confirmed: [
+        { key: 'hay_hijos', label: 'Hijos', value: true },
+        { key: 'ingresos', label: 'Ingresos del otro progenitor', value: 'Aproximados' },
+      ],
+      facts_missing: [
+        { key: 'domicilio_relevante', label: 'Domicilio relevante', category: 'critical' },
+      ],
+      facts_conflicting: [
+        { key: 'vinculo', prev_value: 'padre', new_value: 'tio' },
+      ],
+      action_plan: [
+        {
+          id: 'step_1',
+          title: 'Aclarar el domicilio relevante',
+          description: 'Confirmar donde corresponde tramitar el caso.',
+          priority: 'high',
+          status: 'pending',
+          why_it_matters: 'Eso destraba la via correcta.',
+        },
+      ],
+      evidence_checklist: {
+        critical: [{ key: 'dni', label: 'DNI', reason: 'Sirve para acreditar identidad.' }],
+        recommended: [{ key: 'recibos', label: 'Recibos', reason: 'Ayudan a estimar ingresos.' }],
+        optional: [],
+      },
+      risk_alerts: [{ type: 'fact_conflict', severity: 'high', message: 'Hay un dato contradictorio.' }],
+      recommended_next_question: 'En que ciudad vive hoy el nino?',
+      professional_handoff: {
+        ready_for_professional_review: true,
+        handoff_reason: 'Conviene una revision profesional breve.',
+        suggested_focus: 'Confirmar competencia y documentacion minima.',
+        open_items: ['Domicilio relevante'],
+        next_question: 'En que ciudad vive hoy el nino?',
+      },
+      last_updated_at: '2026-04-08T00:00:00Z',
+    },
+    conversational: {
+      message: 'Orientacion inicial.',
+      should_ask_first: false,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: [],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.caseWorkspace.available, true);
+  assert.equal(display.caseWorkspace.shouldRenderPanel, true);
+  assert.equal(display.caseWorkspace.status.label, 'Falta una aclaracion importante');
+  assert.equal(display.caseWorkspace.primaryDefinedFacts.length, 2);
+  assert.equal(display.caseWorkspace.primaryMissingFacts[0], 'vinculo: aparece como "padre" y tambien como "tio"');
+  assert.equal(display.caseWorkspace.actionPlan[0].title, 'Aclarar el domicilio relevante');
+  assert.equal(display.caseWorkspace.evidenceChecklist.critical[0].label, 'DNI');
+  assert.equal(display.caseWorkspace.handoff.openItems[0], 'Domicilio relevante');
+});
+
+test('adaptLegalResultForDisplay oculta case workspace cuando no viene', () => {
+  const display = adaptLegalResultForDisplay({
+    case_domain: 'divorcio',
+    conversational: {
+      message: 'Orientacion simple.',
+      should_ask_first: false,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: [],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.caseWorkspace.available, false);
+  assert.equal(display.caseWorkspace.actionPlan.length, 0);
+});
+
+test('adaptLegalResultForDisplay evita duplicar la misma pregunta entre conversacion y workspace', () => {
+  const display = adaptLegalResultForDisplay({
+    case_domain: 'alimentos',
+    conversational: {
+      message: 'Necesito una aclaracion breve.',
+      question: 'En que ciudad vive hoy el nino?',
+      should_ask_first: true,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: ['domicilio_relevante'],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    case_workspace: {
+      case_id: 'conv-dup',
+      workspace_version: 'case_workspace_v1',
+      case_status: 'needs_information',
+      case_summary: 'Falta una aclaracion para seguir.',
+      facts_confirmed: [],
+      facts_missing: [{ key: 'domicilio_relevante', label: 'Domicilio relevante', category: 'critical' }],
+      facts_conflicting: [],
+      action_plan: [],
+      evidence_checklist: { critical: [], recommended: [], optional: [] },
+      risk_alerts: [],
+      recommended_next_question: 'En que ciudad vive hoy el nino?',
+      professional_handoff: {},
+      last_updated_at: '2026-04-08T00:00:00Z',
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.caseWorkspace.nextQuestion, '');
+  assert.equal(display.caseWorkspace.primaryMissingFacts[0], 'Domicilio relevante');
+});
+
+test('adaptLegalResultForDisplay expone fase operativa y handoff reforzado', () => {
+  const display = adaptLegalResultForDisplay({
+    case_domain: 'alimentos',
+    conversational: {
+      message: 'Hay base para revisar.',
+      should_ask_first: false,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: [],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    case_workspace: {
+      case_id: 'conv-phase',
+      workspace_version: 'case_workspace_v1',
+      case_status: 'ready_for_strategy_decision',
+      recommended_phase: 'define_strategy',
+      recommended_phase_label: 'Definir estrategia',
+      operating_phase: 'decide',
+      operating_phase_reason: 'La base actual ya permite comparar vias.',
+      primary_focus: {
+        type: 'strategy',
+        label: 'Definir la via principal del caso',
+        reason: 'La pregunta central ya no es solo que falta.',
+      },
+      case_summary: 'Caso suficientemente ordenado para evaluar una via principal.',
+      facts_confirmed: [],
+      facts_missing: [],
+      facts_conflicting: [],
+      action_plan: [
+        {
+          id: 'step_1',
+          step_id: 'step_1',
+          title: 'Definir la via principal',
+          description: 'Comparar la opcion mas conveniente.',
+          priority: 'high',
+          status: 'pending',
+          is_primary: true,
+          phase: 'decide',
+          phase_label: 'Definir la via principal',
+          blocked_by_missing_info: false,
+          why_now: 'Ahora conviene fijar criterio para que el caso no siga disperso.',
+          why_it_matters: 'Eso ordena el siguiente movimiento.',
+        },
+      ],
+      evidence_checklist: {
+        critical: [],
+        recommended: [
+          {
+            key: 'constancia_domicilio',
+            label: 'Constancia de domicilio',
+            why_it_matters: 'Ayuda a sostener la competencia.',
+            supports_step: 'step_1',
+          },
+        ],
+        optional: [],
+      },
+      risk_alerts: [],
+      professional_handoff: {
+        ready_for_professional_review: true,
+        review_readiness: 'decision_ready',
+        handoff_reason: 'La base actual permite una revision profesional util.',
+        primary_friction: 'Falta cerrar la via principal.',
+        recommended_professional_focus: 'Comparar alternativas y descartar la menos robusta.',
+        professional_entry_point: 'Entrar por la definicion de la via principal.',
+        open_items: ['Via principal'],
+      },
+      last_updated_at: '2026-04-08T00:00:00Z',
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.caseWorkspace.phase.label, 'Definir estrategia');
+  assert.equal(display.caseWorkspace.primaryFocus.label, 'Definir la via principal del caso');
+  assert.equal(display.caseWorkspace.actionPlan[0].isPrimary, true);
+  assert.equal(display.caseWorkspace.actionPlan[0].phaseLabel, 'Definir la via principal');
+  assert.ok(display.caseWorkspace.actionPlan[0].whyNow.includes('criterio'));
+  assert.equal(
+    display.caseWorkspace.evidenceChecklist.recommended[0].supportsStepTitle,
+    'Definir la via principal',
+  );
+  assert.equal(
+    display.caseWorkspace.handoff.reviewReadinessLabel,
+    'Listo para decision profesional',
+  );
+  assert.ok(display.caseWorkspace.handoff.professionalEntryPoint.includes('via principal'));
+});
