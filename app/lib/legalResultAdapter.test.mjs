@@ -605,6 +605,103 @@ test('decisionStrength recommended usa wording intermedio', () => {
   assert.ok(display.nextBestStep.startsWith('Lo mas conveniente ahora es'));
 });
 
+test('professional_judgment refuerza la lectura principal y la justificacion del paso', () => {
+  const display = adaptLegalResultForDisplay({
+    quick_start: 'Presentar el reclamo principal.',
+    professional_judgment: {
+      applies: true,
+      dominant_factor: 'Lo que mas pesa hoy es que ya hay base suficiente para actuar.',
+      best_next_move: 'Presentar el reclamo principal.',
+      why_this_matters_now: 'Porque ya hay base suficiente para pasar de ordenamiento a accion.',
+      recommendation_stance: 'firm_action',
+      prudence_level: 'low',
+      highlights: [
+        'Lo que mas pesa hoy es que ya hay base suficiente para actuar.',
+        'La posicion ya tiene una base util para pasar a una accion concreta.',
+      ],
+    },
+    conversational: {
+      message: 'Hay base suficiente para orientar.',
+      should_ask_first: false,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: [],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    case_progress: {
+      stage: 'ejecucion',
+      readiness_label: 'high',
+      progress_status: 'ready',
+      next_step_type: 'execute',
+      critical_gaps: [],
+      important_gaps: [],
+      blocking_issues: [],
+      contradictions: [],
+      contradiction_count: 0,
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.decisionStrength, 'strong');
+  assert.equal(
+    display.primaryReadingSupport,
+    'Lo que mas pesa hoy es que ya hay base suficiente para actuar.',
+  );
+  assert.equal(
+    display.nextStepWhy,
+    'Porque ya hay base suficiente para pasar de ordenamiento a accion.',
+  );
+  assert.ok(display.professionalJudgmentHighlights.length >= 2);
+});
+
+test('professional_judgment explica para que sirve el follow-up sin duplicar el next step', () => {
+  const display = adaptLegalResultForDisplay({
+    professional_judgment: {
+      applies: true,
+      recommendation_stance: 'clarify_before_action',
+      prudence_level: 'high',
+      followup_why:
+        'Esto permite cerrar la jurisdiccion relevante, que hoy condiciona el siguiente paso.',
+      blocking_issue: 'Hoy falta cerrar la jurisdiccion relevante para que el siguiente paso no quede flojo.',
+    },
+    conversational: {
+      message: 'Necesito confirmar un punto.',
+      question: 'En que jurisdiccion tramitaria esto?',
+      should_ask_first: true,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: ['jurisdiccion'],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    case_progress: {
+      stage: 'decision',
+      readiness_label: 'medium',
+      progress_status: 'stalled',
+      next_step_type: 'ask',
+      critical_gaps: [{ key: 'jurisdiccion', label: 'la jurisdiccion relevante' }],
+      important_gaps: [],
+      blocking_issues: [],
+      contradictions: [],
+      contradiction_count: 0,
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.decisionStrength, 'soft');
+  assert.ok(display.nextBestStep.toLowerCase().includes('responder esta pregunta clave'));
+  assert.equal(
+    display.followupWhy,
+    'Esto permite cerrar la jurisdiccion relevante, que hoy condiciona el siguiente paso.',
+  );
+  assert.notEqual(display.followupWhy, display.nextStepWhy);
+});
+
 test('nextStepWhy y followupWhy no son excesivamente largos ni redundantes', () => {
   const display = adaptLegalResultForDisplay({
     quick_start: 'Iniciar el reclamo principal.',

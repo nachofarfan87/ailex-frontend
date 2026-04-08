@@ -238,6 +238,8 @@ export default function LegalQueryResults({
     : snapshot?.primaryGap
       ? `Esto apunta a definir ${snapshot.primaryGap.label}.`
       : '';
+  const primaryReadingSupport =
+    display.primaryReadingSupport || snapshot?.caseDirection || display.modeDescription;
   const caseMapCount = sumCounts([
     display.primaryClarifications.length,
     display.primaryNextSteps.length,
@@ -297,10 +299,8 @@ export default function LegalQueryResults({
             <h4 className={readingStyles.primaryReadingTitle}>{display.primaryReadingTitle}</h4>
           </div>
           <p className={readingStyles.primaryReadingText}>{display.primaryReadingText}</p>
-          {snapshot?.caseDirection ? (
-            <p className={readingStyles.primaryReadingSupport}>{snapshot.caseDirection}</p>
-          ) : display.modeDescription ? (
-            <p className={readingStyles.primaryReadingSupport}>{display.modeDescription}</p>
+          {primaryReadingSupport ? (
+            <p className={readingStyles.primaryReadingSupport}>{primaryReadingSupport}</p>
           ) : null}
         </section>
 
@@ -355,7 +355,8 @@ export default function LegalQueryResults({
               onSubmitAnswer={onSubmitAnswer || onQuickReply}
             />
           </section>
-        ) : (
+        ) : null}
+        {!hasConversationalChat ? (
           <FollowupCard
             question={display.primaryReadingQuestion}
             options={display.conversational.options}
@@ -365,7 +366,7 @@ export default function LegalQueryResults({
             hint={display.followupWhy || display.followupPurpose || snapshot?.followupDirectionHint || ''}
             followupType={display.followupType}
           />
-        )}
+        ) : null}
       </div>
 
       {hasCaseMap ? (
@@ -517,6 +518,13 @@ export default function LegalQueryResults({
                 {professionalMode.summary || 'No se devolvio resumen profesional adicional.'}
               </p>
             </section>
+
+            {display.professionalJudgmentHighlights?.length ? (
+              <section className={`${styles.panel} ${styles.resultsSection}`}>
+                <h4 className={styles.panelTitle}>Juicio profesional aplicado</h4>
+                <CompactList items={display.professionalJudgmentHighlights} />
+              </section>
+            ) : null}
 
             <section className={`${styles.panel} ${styles.resultsSection}`}>
               <h4 className={styles.panelTitle}>Estrategia juridica</h4>

@@ -69,3 +69,31 @@ test('normalizeLegalQueryResponse preserva case_progress y su narrativa para la 
     'Lo siguiente mas util es definir la jurisdiccion.',
   );
 });
+
+test('normalizeLegalQueryResponse preserva professional_judgment para la UI', () => {
+  const normalized = normalizeLegalQueryResponse({
+    smart_strategy: {
+      strategy_mode: 'action_first',
+      recommended_tone: 'directo',
+    },
+    professional_judgment: {
+      applies: true,
+      dominant_factor: 'Lo que mas pesa hoy es que ya hay base suficiente para actuar.',
+      best_next_move: 'Presentar el reclamo principal.',
+      why_this_matters_now: 'Porque ya hay base suficiente para pasar a accion.',
+      followup_why: 'Esto permite confirmar un punto sensible.',
+      highlights: [
+        'Lo que mas pesa hoy es que ya hay base suficiente para actuar.',
+        'El riesgo practico es demorar una medida util.',
+      ],
+    },
+  });
+
+  assert.equal(normalized.smart_strategy.strategy_mode, 'action_first');
+  assert.equal(normalized.professional_judgment.applies, true);
+  assert.equal(
+    normalized.professional_judgment.best_next_move,
+    'Presentar el reclamo principal.',
+  );
+  assert.equal(normalized.professional_judgment.highlights.length, 2);
+});

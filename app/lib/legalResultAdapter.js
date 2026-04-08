@@ -89,6 +89,27 @@ function normalizeConversationalResponse(raw) {
   };
 }
 
+function normalizeProfessionalJudgment(raw) {
+  const safe = asObject(raw);
+  return {
+    applies: Boolean(safe.applies),
+    dominant_factor: pickFirstText(safe.dominant_factor),
+    practical_risk: pickFirstText(safe.practical_risk),
+    position_strength: String(safe.position_strength || '').trim(),
+    blocking_issue: pickFirstText(safe.blocking_issue),
+    best_next_move: pickFirstText(safe.best_next_move),
+    prudence_level: String(safe.prudence_level || '').trim(),
+    recommendation_stance: String(safe.recommendation_stance || '').trim(),
+    why_this_matters_now: pickFirstText(safe.why_this_matters_now),
+    exposure_level: String(safe.exposure_level || '').trim(),
+    strengthens_position: pickFirstText(safe.strengthens_position),
+    weakens_position: pickFirstText(safe.weakens_position),
+    missing_to_strengthen: pickFirstText(safe.missing_to_strengthen),
+    followup_why: pickFirstText(safe.followup_why),
+    highlights: asArray(safe.highlights).map((item) => extractDisplayText(item)).filter(Boolean),
+  };
+}
+
 const ROBOTIC_PATTERNS = [
   /persisten cuestiones/i,
   /la informacion faltante.*es significativa/i,
@@ -217,6 +238,7 @@ function buildDecisionCandidates({
   caseProgressSnapshot,
   caseWorkspace,
   nextSteps,
+  professionalJudgment,
 }) {
   const workspaceActions = asArray(caseWorkspace?.actionPlan)
     .map((item) => extractDisplayText(item?.title || item?.description))
@@ -224,6 +246,7 @@ function buildDecisionCandidates({
 
   return deduplicateItems(
     [
+      professionalJudgment?.best_next_move,
       conversational.next_step,
       quickStart,
       caseWorkspace?.primaryFocus?.label,
@@ -335,9 +358,18 @@ function resolveDecisionStrength({
   quickStart,
   summary,
   conversational,
+  professionalJudgment,
 }) {
   if (!nextBestStep) return 'soft';
   if (followup.isBlockingFollowup) return 'soft';
+
+  const stance = String(professionalJudgment?.recommendation_stance || '').trim().toLowerCase();
+  const prudenceLevel = String(professionalJudgment?.prudence_level || '').trim().toLowerCase();
+
+  if (stance === 'urgent_action') return 'urgent';
+  if (stance === 'firm_action' && prudenceLevel !== 'high') return 'strong';
+  if (stance === 'guided_action') return 'recommended';
+  if (stance === 'clarify_before_action' || prudenceLevel === 'high') return 'soft';
 
   const urgencySignal = detectUrgencySignal({
     safeResponse,
@@ -426,8 +458,13 @@ function buildNextStepWhy({
   caseProgress,
   caseProgressSnapshot,
   nextBestStep,
+  professionalJudgment,
 }) {
   if (!nextBestStep) return '';
+  const judgmentWhy = String(professionalJudgment?.why_this_matters_now || '').trim();
+  if (judgmentWhy) {
+    return judgmentWhy.length > 150 ? splitSentences(judgmentWhy)[0] : judgmentWhy;
+  }
   if (followup.isBlockingFollowup) {
     return followup.followupType === 'confirmation'
       ? 'Porque antes hace falta confirmar un punto sensible para no avanzar sobre una base contradictoria.'
@@ -461,8 +498,13 @@ function buildNextStepWhy({
 function buildFollowupWhy({
   followup,
   caseProgressSnapshot,
+  professionalJudgment,
 }) {
   if (!followup.followupType) return '';
+  const judgmentWhy = String(professionalJudgment?.followup_why || '').trim();
+  if (judgmentWhy) {
+    return judgmentWhy.length > 150 ? splitSentences(judgmentWhy)[0] : judgmentWhy;
+  }
   if (caseProgressSnapshot?.questionTargetHint) {
     const hint = String(caseProgressSnapshot.questionTargetHint || '').trim();
     return hint.length > 140 ? splitSentences(hint)[0] : hint;
@@ -476,6 +518,35 @@ function buildFollowupWhy({
   return 'Esto ayuda a afinar la orientacion sin frenar todo el avance.';
 }
 
+function buildPrimaryReadingSupport({
+  professionalJudgment,
+  caseProgressSnapshot,
+  modeDescription,
+}) {
+  return (
+    String(professionalJudgment?.dominant_factor || '').trim() ||
+    String(professionalJudgment?.blocking_issue || '').trim() ||
+    String(professionalJudgment?.practical_risk || '').trim() ||
+    String(caseProgressSnapshot?.caseDirection || '').trim() ||
+    String(modeDescription || '').trim()
+  );
+}
+
+function buildProfessionalJudgmentHighlights(professionalJudgment) {
+  return deduplicateItems(
+    [
+      professionalJudgment?.dominant_factor,
+      professionalJudgment?.practical_risk,
+      professionalJudgment?.strengthens_position,
+      professionalJudgment?.weakens_position,
+      professionalJudgment?.missing_to_strengthen,
+      ...asArray(professionalJudgment?.highlights),
+    ]
+      .map((item) => String(item || '').trim())
+      .filter(Boolean),
+  ).slice(0, 4);
+}
+
 export { extractDisplayText, buildCaseProgress, itemToText };
 
 export function adaptLegalResultForDisplay(response) {
@@ -484,6 +555,7 @@ export function adaptLegalResultForDisplay(response) {
   const caseStrategy = asObject(safeResponse.case_strategy);
   const proceduralStrategy = asObject(safeResponse.procedural_strategy);
   const normativeReasoning = asObject(safeResponse.normative_reasoning);
+  const professionalJudgment = normalizeProfessionalJudgment(safeResponse.professional_judgment);
   const outputModes = asObject(safeResponse.output_modes);
   const userMode = normalizeMode(outputModes.user);
   const professionalMode = normalizeMode(outputModes.professional);
@@ -608,6 +680,7 @@ export function adaptLegalResultForDisplay(response) {
     caseProgressSnapshot,
     caseWorkspace,
     nextSteps,
+    professionalJudgment,
   });
   const rawNextBestStep = decisionCandidates[0] || '';
   const shouldExposeFollowup = shouldSurfaceFollowup({
@@ -643,6 +716,7 @@ export function adaptLegalResultForDisplay(response) {
     quickStart,
     summary,
     conversational,
+    professionalJudgment,
   });
   const nextBestStepWithStrength = applyDecisionStrengthWording(nextBestStep, decisionStrength);
   const nextStepWhy = buildNextStepWhy({
@@ -651,10 +725,12 @@ export function adaptLegalResultForDisplay(response) {
     caseProgress: safeResponse.case_progress,
     caseProgressSnapshot,
     nextBestStep: nextBestStepWithStrength,
+    professionalJudgment,
   });
   const followupWhy = buildFollowupWhy({
     followup: effectiveFollowup,
     caseProgressSnapshot,
+    professionalJudgment,
   });
   const supportingNextSteps = buildSupportingNextSteps({
     primaryCandidates: decisionCandidates.slice(1),
@@ -662,6 +738,12 @@ export function adaptLegalResultForDisplay(response) {
     primaryReadingText,
     question: effectiveFollowupQuestion,
   });
+  const primaryReadingSupport = buildPrimaryReadingSupport({
+    professionalJudgment,
+    caseProgressSnapshot,
+    modeDescription,
+  });
+  const professionalJudgmentHighlights = buildProfessionalJudgmentHighlights(professionalJudgment);
 
   return {
     title: userMode.title || professionalMode.title || humanizeDomain(safeResponse.case_domain),
@@ -697,6 +779,7 @@ export function adaptLegalResultForDisplay(response) {
     primaryReadingText:
       primaryReadingText ||
       'AILEX no devolvio una orientacion breve clara, pero la respuesta completa sigue disponible.',
+    primaryReadingSupport,
     primaryReadingQuestion: effectiveFollowupQuestion,
     nextBestStep: nextBestStepWithStrength,
     supportingNextSteps,
@@ -707,6 +790,8 @@ export function adaptLegalResultForDisplay(response) {
     followupPurpose: effectiveFollowup.followupPurpose,
     followupWhy,
     isBlockingFollowup: effectiveFollowup.isBlockingFollowup,
+    professionalJudgment,
+    professionalJudgmentHighlights,
     conversational: {
       ...conversational,
       knownFactPills,

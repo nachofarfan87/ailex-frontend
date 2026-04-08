@@ -144,6 +144,42 @@ function normalizeCaseProgressNarrative(value) {
   };
 }
 
+function normalizeSmartStrategy(value) {
+  const safeValue = asObject(value);
+  return {
+    strategy_mode: String(safeValue.strategy_mode || '').trim(),
+    response_goal: String(safeValue.response_goal || '').trim(),
+    recommended_tone: String(safeValue.recommended_tone || '').trim(),
+    recommended_structure: String(safeValue.recommended_structure || '').trim(),
+    should_prioritize_action: Boolean(safeValue.should_prioritize_action),
+    should_prioritize_clarification: Boolean(safeValue.should_prioritize_clarification),
+    should_limit_analysis: Boolean(safeValue.should_limit_analysis),
+    should_offer_next_step: Boolean(safeValue.should_offer_next_step),
+    reason: extractDisplayText(safeValue.reason),
+  };
+}
+
+function normalizeProfessionalJudgment(value) {
+  const safeValue = asObject(value);
+  return {
+    applies: Boolean(safeValue.applies),
+    dominant_factor: extractDisplayText(safeValue.dominant_factor),
+    practical_risk: extractDisplayText(safeValue.practical_risk),
+    position_strength: String(safeValue.position_strength || '').trim(),
+    blocking_issue: extractDisplayText(safeValue.blocking_issue),
+    best_next_move: extractDisplayText(safeValue.best_next_move),
+    prudence_level: String(safeValue.prudence_level || '').trim(),
+    recommendation_stance: String(safeValue.recommendation_stance || '').trim(),
+    why_this_matters_now: extractDisplayText(safeValue.why_this_matters_now),
+    exposure_level: String(safeValue.exposure_level || '').trim(),
+    strengthens_position: extractDisplayText(safeValue.strengthens_position),
+    weakens_position: extractDisplayText(safeValue.weakens_position),
+    missing_to_strengthen: extractDisplayText(safeValue.missing_to_strengthen),
+    followup_why: extractDisplayText(safeValue.followup_why),
+    highlights: asArray(safeValue.highlights).map(extractDisplayText).filter(Boolean),
+  };
+}
+
 function normalizeCaseWorkspaceFact(value) {
   const safeValue = asObject(value);
   return {
@@ -383,6 +419,8 @@ export function normalizeLegalQueryResponse(payload = {}) {
     },
     conversational: normalizeConversational(safePayload.conversational),
     conversational_response: normalizeConversationalResponse(safePayload.conversational_response),
+    smart_strategy: normalizeSmartStrategy(safePayload.smart_strategy),
+    professional_judgment: normalizeProfessionalJudgment(safePayload.professional_judgment),
     case_progress: caseProgress,
     case_progress_snapshot: caseProgressSnapshot,
     case_progress_narrative: caseProgressNarrative,
