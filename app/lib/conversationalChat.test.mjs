@@ -87,6 +87,17 @@ test('autoscroll helper devuelve false si el usuario se alejo del final', () => 
   );
 });
 
+test('autoscroll helper no fuerza scroll global si el contenedor no tiene overflow propio', () => {
+  assert.equal(
+    shouldAutoScroll({
+      scrollHeight: 480,
+      clientHeight: 480,
+      scrollTop: 0,
+    }),
+    false,
+  );
+});
+
 test('boton disabled con input vacio', () => {
   assert.equal(canStartSubmit(false, ''), false);
   assert.equal(canStartSubmit(false, '   '), false);

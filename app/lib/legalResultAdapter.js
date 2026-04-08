@@ -9,6 +9,7 @@ import {
   itemToText,
   mergeAndDeduplicate,
   pickFirstText,
+  textLooksRedundant,
 } from './displayTextUtils.js';
 import {
   buildCaseProgress,
@@ -104,6 +105,375 @@ function isRoboticPhrase(text) {
 
 function filterRoboticPhrases(items) {
   return items.filter((item) => !isRoboticPhrase(item));
+}
+
+const ACTION_LEAD_VERBS = [
+  'iniciar',
+  'presentar',
+  'pedir',
+  'reunir',
+  'responder',
+  'confirmar',
+  'acreditar',
+  'definir',
+  'precisar',
+  'ordenar',
+  'tramitar',
+  'solicitar',
+  'promover',
+  'reclamar',
+  'preparar',
+  'consultar',
+];
+
+const URGENCY_HINT_PATTERNS = [
+  'urgenc',
+  'urgente',
+  'cuanto antes',
+  'inmediato',
+  'inmediata',
+  'riesgo',
+  'violenc',
+  'salud',
+  'cautelar',
+  'provisoria',
+  'alimentos urgentes',
+];
+
+function splitSentences(text) {
+  return String(text || '')
+    .split(/(?<=[.!?])\s+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function simplifyDecisionText(text) {
+  let value = String(text || '').trim();
+  if (!value) return '';
+
+  value = value
+    .replace(/^primer paso recomendado:\s*/i, '')
+    .replace(/^lo mas conveniente ahora es\s*/i, 'Lo mas conveniente ahora es ')
+    .replace(/^para avanzar(?: de forma concreta)?[:,]?\s*/i, '')
+    .trim();
+
+  const sentences = splitSentences(value);
+  value = sentences[0] || value;
+
+  if (value.includes(':')) {
+    const [lead, tail] = value.split(':');
+    if (tail && tail.trim()) {
+      value = tail.trim();
+    } else {
+      value = lead.trim();
+    }
+  }
+
+  const clauses = value
+    .split(/,(?:\s+y\s+|\s+o\s+)?/i)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const firstActionClause = clauses.find((item) =>
+    ACTION_LEAD_VERBS.some((verb) => item.toLowerCase().startsWith(verb)),
+  );
+  value = firstActionClause || clauses[0] || value;
+
+  if (value && !/[.!?]$/.test(value)) {
+    value += '.';
+  }
+  return value;
+}
+
+function normalizeDecisionLead(text) {
+  return String(text || '')
+    .trim()
+    .replace(/^lo mas conveniente ahora es\s+/i, '')
+    .replace(/^en este punto,\s*conviene\s+/i, '')
+    .replace(/^esto conviene hacerlo cuanto antes:\s*/i, '')
+    .replace(/^podria convenir\s+/i, '')
+    .trim();
+}
+
+function detectUrgencySignal({ safeResponse, quickStart, summary, conversational }) {
+  const textSources = [
+    quickStart,
+    summary,
+    conversational.question,
+    conversational.message,
+    JSON.stringify(conversational.known_facts || {}),
+    JSON.stringify(asObject(safeResponse.case_profile)),
+    JSON.stringify(asObject(safeResponse.smart_strategy)),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  return URGENCY_HINT_PATTERNS.some((pattern) => textSources.includes(pattern));
+}
+
+function buildDecisionCandidates({
+  conversational,
+  quickStart,
+  caseProgressSnapshot,
+  caseWorkspace,
+  nextSteps,
+}) {
+  const workspaceActions = asArray(caseWorkspace?.actionPlan)
+    .map((item) => extractDisplayText(item?.title || item?.description))
+    .filter(Boolean);
+
+  return deduplicateItems(
+    [
+      conversational.next_step,
+      quickStart,
+      caseWorkspace?.primaryFocus?.label,
+      caseProgressSnapshot?.nextStepLabel,
+      ...workspaceActions,
+      ...nextSteps,
+    ]
+      .map((item) => simplifyDecisionText(item))
+      .filter(Boolean),
+  );
+}
+
+function classifyFollowup({
+  question,
+  shouldAskFirst,
+  caseProgress,
+  conversational,
+}) {
+  const normalizedQuestion = String(question || '').trim();
+  if (!normalizedQuestion) {
+    return {
+      followupType: '',
+      followupPurpose: '',
+      isBlockingFollowup: false,
+    };
+  }
+
+  const nextStepType = String(caseProgress?.next_step_type || '').trim().toLowerCase();
+  const readinessLabel = String(caseProgress?.readiness_label || '').trim().toLowerCase();
+  const contradictionCount = Number(caseProgress?.contradiction_count || 0);
+  const criticalGapCount = asArray(caseProgress?.critical_gaps).length;
+  const completeness = asObject(conversational?.case_completeness);
+  const missingCriticalCount = asArray(completeness.missing_critical).length;
+  const loweredQuestion = normalizedQuestion.toLowerCase();
+
+  if (
+    nextStepType === 'resolve_contradiction' ||
+    contradictionCount > 0 ||
+    /\bdato correcto\b|\bconfirmar\b|\bseria\b/.test(loweredQuestion)
+  ) {
+    return {
+      followupType: 'confirmation',
+      followupPurpose: 'Esta pregunta confirma un punto sensible antes de avanzar.',
+      isBlockingFollowup: true,
+    };
+  }
+
+  if (
+    nextStepType === 'ask' ||
+    criticalGapCount > 0 ||
+    missingCriticalCount > 0 ||
+    (shouldAskFirst && readinessLabel !== 'high')
+  ) {
+    return {
+      followupType: 'critical_data',
+      followupPurpose: 'Necesito este dato para destrabar el siguiente paso.',
+      isBlockingFollowup: true,
+    };
+  }
+
+  return {
+    followupType: 'refinement',
+    followupPurpose:
+      'Esta pregunta solo sirve para ajustar mejor la orientacion, pero no bloquea todo el caso.',
+    isBlockingFollowup: false,
+  };
+}
+
+function shouldSurfaceFollowup({
+  question,
+  classification,
+  caseProgress,
+  nextStepCandidate,
+}) {
+  if (!String(question || '').trim()) return false;
+  if (classification.isBlockingFollowup) return true;
+
+  const readinessLabel = String(caseProgress?.readiness_label || '').trim().toLowerCase();
+  const nextStepType = String(caseProgress?.next_step_type || '').trim().toLowerCase();
+  const hasBlockers = asArray(caseProgress?.blocking_issues).length > 0;
+  const criticalGapCount = asArray(caseProgress?.critical_gaps).length;
+
+  if (nextStepType === 'execute') return false;
+  if (readinessLabel === 'high' && !hasBlockers && criticalGapCount === 0) return false;
+  if (nextStepCandidate) return false;
+
+  return true;
+}
+
+function shapeNextBestStep({
+  rawNextBestStep,
+  followup,
+}) {
+  if (followup.isBlockingFollowup) {
+    if (followup.followupType === 'confirmation') {
+      return 'Antes de avanzar con una accion concreta, conviene confirmar este punto.';
+    }
+    return 'Antes de avanzar con una accion concreta, conviene responder esta pregunta clave.';
+  }
+  return simplifyDecisionText(rawNextBestStep);
+}
+
+function resolveDecisionStrength({
+  safeResponse,
+  caseProgress,
+  followup,
+  nextBestStep,
+  nextStepPriority,
+  quickStart,
+  summary,
+  conversational,
+}) {
+  if (!nextBestStep) return 'soft';
+  if (followup.isBlockingFollowup) return 'soft';
+
+  const urgencySignal = detectUrgencySignal({
+    safeResponse,
+    quickStart,
+    summary,
+    conversational,
+  });
+  const readinessLabel = String(caseProgress?.readiness_label || '').trim().toLowerCase();
+  const nextStepType = String(caseProgress?.next_step_type || '').trim().toLowerCase();
+  const progressStatus = String(caseProgress?.progress_status || '').trim().toLowerCase();
+
+  if (urgencySignal) return 'urgent';
+  if (
+    nextStepPriority === 'high_priority_action' &&
+    (nextStepType === 'execute' || readinessLabel === 'high' || progressStatus === 'ready')
+  ) {
+    return 'strong';
+  }
+  if (nextStepPriority === 'high_priority_action' || nextStepPriority === 'optional_next_step') {
+    return 'recommended';
+  }
+  return 'soft';
+}
+
+function applyDecisionStrengthWording(text, decisionStrength) {
+  const rawText = String(text || '').trim();
+  if (/^antes de avanzar\b/i.test(rawText)) {
+    return rawText;
+  }
+  const simplified = simplifyDecisionText(rawText);
+  if (/^antes de avanzar\b/i.test(simplified)) {
+    return simplified;
+  }
+  const lead = normalizeDecisionLead(simplifyDecisionText(text));
+  if (!lead) return '';
+
+  if (decisionStrength === 'urgent') {
+    return `Esto conviene hacerlo cuanto antes: ${lead}`;
+  }
+  if (decisionStrength === 'strong') {
+    return `En este punto, conviene ${lead.charAt(0).toLowerCase()}${lead.slice(1)}`;
+  }
+  if (decisionStrength === 'recommended') {
+    return `Lo mas conveniente ahora es ${lead.charAt(0).toLowerCase()}${lead.slice(1)}`;
+  }
+  return `Podria convenir ${lead.charAt(0).toLowerCase()}${lead.slice(1)}`;
+}
+
+function resolveNextStepPriority({
+  nextBestStep,
+  followup,
+  caseProgressSnapshot,
+  caseProgress,
+}) {
+  if (!nextBestStep) return 'informational_only';
+
+  const nextStepType = String(
+    caseProgressSnapshot?.nextStepType || caseProgress?.next_step_type || '',
+  )
+    .trim()
+    .toLowerCase();
+
+  if (followup.isBlockingFollowup) return 'high_priority_action';
+  if (nextStepType === 'execute' || nextStepType === 'decide') return 'high_priority_action';
+  if (ACTION_LEAD_VERBS.some((verb) => nextBestStep.toLowerCase().startsWith(verb))) {
+    return 'high_priority_action';
+  }
+  return 'optional_next_step';
+}
+
+function buildSupportingNextSteps({
+  primaryCandidates,
+  nextBestStep,
+  primaryReadingText,
+  question,
+}) {
+  return primaryCandidates
+    .filter((item) => item && !isSameAction(item, nextBestStep))
+    .filter((item) => !textLooksRedundant(item, [primaryReadingText, question, nextBestStep]))
+    .slice(0, 2);
+}
+
+function buildNextStepWhy({
+  decisionStrength,
+  followup,
+  caseProgress,
+  caseProgressSnapshot,
+  nextBestStep,
+}) {
+  if (!nextBestStep) return '';
+  if (followup.isBlockingFollowup) {
+    return followup.followupType === 'confirmation'
+      ? 'Porque antes hace falta confirmar un punto sensible para no avanzar sobre una base contradictoria.'
+      : 'Porque sin responder esto el siguiente paso puede quedar mal orientado o ser prematuro.';
+  }
+
+  if (String(caseProgress?.next_step_type || '').trim().toLowerCase() === 'execute') {
+    return 'Porque ya hay base suficiente para pasar de ordenamiento a accion concreta.';
+  }
+
+  if (decisionStrength === 'urgent') {
+    return 'Porque el contexto muestra urgencia y conviene mover esto antes de que el problema escale.';
+  }
+
+  if (caseProgressSnapshot?.nextStepReason) {
+    const text = String(caseProgressSnapshot.nextStepReason || '').trim();
+    return text.length > 140 ? splitSentences(text)[0] : text;
+  }
+
+  if (decisionStrength === 'strong') {
+    return 'Porque con lo que ya esta definido, este es el movimiento mas firme para hacer avanzar el caso.';
+  }
+
+  if (decisionStrength === 'recommended') {
+    return 'Porque es el paso que mejor ordena el caso sin abrir frentes innecesarios.';
+  }
+
+  return 'Porque ayuda a orientar mejor el caso sin cerrar en falso una decision todavia sensible.';
+}
+
+function buildFollowupWhy({
+  followup,
+  caseProgressSnapshot,
+}) {
+  if (!followup.followupType) return '';
+  if (caseProgressSnapshot?.questionTargetHint) {
+    const hint = String(caseProgressSnapshot.questionTargetHint || '').trim();
+    return hint.length > 140 ? splitSentences(hint)[0] : hint;
+  }
+  if (followup.followupType === 'confirmation') {
+    return 'Esto sirve para confirmar un punto sensible antes de seguir.';
+  }
+  if (followup.followupType === 'critical_data') {
+    return 'Esto destraba el dato clave que hoy condiciona el siguiente paso.';
+  }
+  return 'Esto ayuda a afinar la orientacion sin frenar todo el avance.';
 }
 
 export { extractDisplayText, buildCaseProgress, itemToText };
@@ -210,6 +580,88 @@ export function adaptLegalResultForDisplay(response) {
   const caseProgress = buildCaseProgress(conversational);
   const caseWorkspace = buildCaseWorkspaceDisplay(safeResponse, nextSteps, pendingClarifications);
   const caseProgressSnapshot = buildCaseProgressSnapshot(safeResponse, conversational, caseProgress);
+  const primaryReadingText = shouldAskFirst
+    ? pickFirstText(
+        conversational.guided_response,
+        conversational.message,
+        userMode.summary,
+        summary,
+      )
+    : pickFirstText(
+        whatThisMeans,
+        summary,
+        conversational.message,
+        rawResponseText,
+      );
+  const primaryReadingQuestion = shouldAskFirst
+    ? pickFirstText(conversational.question, conversationalResponse.primary_question)
+    : '';
+  const followupClassification = classifyFollowup({
+    question: primaryReadingQuestion,
+    shouldAskFirst,
+    caseProgress: safeResponse.case_progress,
+    conversational,
+  });
+  const decisionCandidates = buildDecisionCandidates({
+    conversational,
+    quickStart,
+    caseProgressSnapshot,
+    caseWorkspace,
+    nextSteps,
+  });
+  const rawNextBestStep = decisionCandidates[0] || '';
+  const shouldExposeFollowup = shouldSurfaceFollowup({
+    question: primaryReadingQuestion,
+    classification: followupClassification,
+    caseProgress: safeResponse.case_progress,
+    nextStepCandidate: rawNextBestStep,
+  });
+  const effectiveFollowupQuestion = shouldExposeFollowup ? primaryReadingQuestion : '';
+  const effectiveFollowup = shouldExposeFollowup
+    ? followupClassification
+    : {
+        followupType: '',
+        followupPurpose: '',
+        isBlockingFollowup: false,
+      };
+  const nextBestStep = shapeNextBestStep({
+    rawNextBestStep,
+    followup: effectiveFollowup,
+  });
+  const nextStepPriority = resolveNextStepPriority({
+    nextBestStep,
+    followup: effectiveFollowup,
+    caseProgressSnapshot,
+    caseProgress: safeResponse.case_progress,
+  });
+  const decisionStrength = resolveDecisionStrength({
+    safeResponse,
+    caseProgress: safeResponse.case_progress,
+    followup: effectiveFollowup,
+    nextBestStep,
+    nextStepPriority,
+    quickStart,
+    summary,
+    conversational,
+  });
+  const nextBestStepWithStrength = applyDecisionStrengthWording(nextBestStep, decisionStrength);
+  const nextStepWhy = buildNextStepWhy({
+    decisionStrength,
+    followup: effectiveFollowup,
+    caseProgress: safeResponse.case_progress,
+    caseProgressSnapshot,
+    nextBestStep: nextBestStepWithStrength,
+  });
+  const followupWhy = buildFollowupWhy({
+    followup: effectiveFollowup,
+    caseProgressSnapshot,
+  });
+  const supportingNextSteps = buildSupportingNextSteps({
+    primaryCandidates: decisionCandidates.slice(1),
+    nextBestStep: nextBestStepWithStrength,
+    primaryReadingText,
+    question: effectiveFollowupQuestion,
+  });
 
   return {
     title: userMode.title || professionalMode.title || humanizeDomain(safeResponse.case_domain),
@@ -238,6 +690,23 @@ export function adaptLegalResultForDisplay(response) {
     mode,
     modeLabel,
     modeDescription,
+    primaryReadingTitle: shouldAskFirst
+      ? 'Antes de avanzar, conviene confirmar este punto'
+      : 'Orientacion principal',
+    primaryReadingEyebrow: shouldAskFirst ? 'Aclaracion necesaria' : 'Orientacion principal',
+    primaryReadingText:
+      primaryReadingText ||
+      'AILEX no devolvio una orientacion breve clara, pero la respuesta completa sigue disponible.',
+    primaryReadingQuestion: effectiveFollowupQuestion,
+    nextBestStep: nextBestStepWithStrength,
+    supportingNextSteps,
+    nextStepPriority,
+    decisionStrength,
+    nextStepWhy,
+    followupType: effectiveFollowup.followupType,
+    followupPurpose: effectiveFollowup.followupPurpose,
+    followupWhy,
+    isBlockingFollowup: effectiveFollowup.isBlockingFollowup,
     conversational: {
       ...conversational,
       knownFactPills,

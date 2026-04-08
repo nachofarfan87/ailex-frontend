@@ -99,7 +99,7 @@ export function canSubmitConversationalAnswer(value) {
 
 export function shouldAutoScroll(containerEl) {
   if (!containerEl || typeof containerEl !== 'object') {
-    return true;
+    return false;
   }
 
   const hasScrollMetrics =
@@ -108,21 +108,16 @@ export function shouldAutoScroll(containerEl) {
     typeof containerEl.clientHeight === 'number';
 
   if (hasScrollMetrics) {
+    const overflowHeight = containerEl.scrollHeight - containerEl.clientHeight;
+    if (overflowHeight <= 4) {
+      return false;
+    }
     const distanceToBottom =
       containerEl.scrollHeight - containerEl.clientHeight - containerEl.scrollTop;
     return distanceToBottom <= 120;
   }
 
-  if (typeof containerEl.getBoundingClientRect === 'function') {
-    const rect = containerEl.getBoundingClientRect();
-    const viewportHeight =
-      typeof window !== 'undefined' && typeof window.innerHeight === 'number'
-        ? window.innerHeight
-        : 900;
-    return rect.bottom - viewportHeight <= 120;
-  }
-
-  return true;
+  return false;
 }
 
 export function submitConversationalAnswer(value, onSubmitAnswer) {

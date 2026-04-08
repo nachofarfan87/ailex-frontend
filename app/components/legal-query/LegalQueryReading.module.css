@@ -1,0 +1,195 @@
+.readingFlow {
+  display: grid;
+  gap: 14px;
+}
+
+.primaryReadingCard,
+.nextBestStepCard,
+.followupCard,
+.primaryConversationSection,
+.secondaryDetailCard {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 18px 20px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.primaryReadingCard {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.032), rgba(255, 255, 255, 0.01)),
+    rgba(14, 18, 25, 0.98);
+}
+
+.primaryReadingCardClarification {
+  background:
+    linear-gradient(180deg, rgba(110, 140, 255, 0.08), rgba(255, 255, 255, 0.012)),
+    rgba(12, 16, 23, 0.98);
+  border-color: rgba(110, 140, 255, 0.18);
+}
+
+.primaryReadingHead,
+.nextBestStepHead,
+.followupHead,
+.primaryConversationHead,
+.readingDisclosureLead {
+  display: grid;
+  gap: 8px;
+}
+
+.primaryReadingEyebrow,
+.nextBestStepEyebrow,
+.followupEyebrow,
+.primaryConversationEyebrow,
+.readingDisclosureTitle {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.primaryReadingEyebrow,
+.nextBestStepEyebrow,
+.followupEyebrow,
+.primaryConversationEyebrow {
+  color: #9ca6b8;
+}
+
+.primaryReadingTitle,
+.followupTitle {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.primaryReadingTitle {
+  font-size: clamp(1.14rem, 1.8vw, 1.36rem);
+  line-height: 1.22;
+}
+
+.followupTitle {
+  font-size: 1.08rem;
+  line-height: 1.55;
+}
+
+.primaryReadingText,
+.nextBestStepText,
+.followupHint,
+.primaryConversationText,
+.primaryReadingSupport,
+.nextBestStepReason,
+.nextBestStepHint {
+  margin: 0;
+  line-height: 1.72;
+  overflow-wrap: anywhere;
+}
+
+.primaryReadingText {
+  color: var(--text-primary);
+  font-size: 1.04rem;
+}
+
+.primaryReadingSupport,
+.followupHint,
+.primaryConversationText,
+.nextBestStepReason,
+.readingDisclosureSubtitle {
+  color: var(--text-secondary);
+}
+
+.nextBestStepCard {
+  background:
+    linear-gradient(180deg, rgba(200, 160, 98, 0.08), rgba(255, 255, 255, 0.012)),
+    rgba(12, 16, 23, 0.98);
+  border-color: rgba(200, 160, 98, 0.18);
+}
+
+.nextBestStepTag,
+.readingDisclosureBadge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border: 1px solid rgba(200, 160, 98, 0.18);
+  color: #f3d9a8;
+  background: rgba(200, 160, 98, 0.1);
+}
+
+.nextBestStepText {
+  color: var(--text-primary);
+  font-size: 1.02rem;
+}
+
+.nextBestStepHint {
+  color: #f1d7a4;
+}
+
+.nextBestStepSupport {
+  display: grid;
+  gap: 8px;
+}
+
+.nextBestStepSupportLabel,
+.readingDisclosureSubtitle {
+  font-size: 0.88rem;
+}
+
+.nextBestStepList {
+  gap: 6px;
+}
+
+.followupCard {
+  background:
+    linear-gradient(180deg, rgba(110, 140, 255, 0.06), rgba(255, 255, 255, 0.012)),
+    rgba(12, 16, 23, 0.98);
+  border-color: rgba(110, 140, 255, 0.18);
+}
+
+.primaryConversationSection {
+  background:
+    linear-gradient(180deg, rgba(110, 140, 255, 0.04), rgba(255, 255, 255, 0.01)),
+    rgba(12, 16, 23, 0.97);
+  border-color: rgba(110, 140, 255, 0.12);
+}
+
+.readingDisclosure {
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.readingDisclosureSummary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+}
+
+.readingDisclosureTitle {
+  color: var(--text-primary);
+}
+
+.disclosureAccent {
+  border-color: rgba(200, 160, 98, 0.16);
+}
+
+.disclosureAlert {
+  border-color: rgba(213, 114, 103, 0.18);
+}
+
+.secondaryDetailCard {
+  margin-top: 12px;
+  padding: 16px 18px;
+  background: rgba(255, 255, 255, 0.022);
+}
+
+@media (max-width: 720px) {
+  .readingDisclosureSummary {
+    align-items: flex-start;
+  }
+}

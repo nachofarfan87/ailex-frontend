@@ -266,6 +266,379 @@ test('adaptLegalResultForDisplay removes quick start from next steps and limits 
   assert.equal(display.primaryNextSteps.length, 3);
 });
 
+test('adaptLegalResultForDisplay arma una capa de lectura principal para aclaracion', () => {
+  const display = adaptLegalResultForDisplay({
+    case_domain: 'alimentos',
+    conversational: {
+      message: 'Necesito confirmar un dato clave antes de seguir.',
+      guided_response: 'Con ese dato te puedo orientar mucho mejor.',
+      question: 'El otro progenitor aporta algo actualmente?',
+      next_step: 'Responder si existe algun aporte actual.',
+      should_ask_first: true,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: ['aportes_actuales'],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.primaryReadingEyebrow, 'Aclaracion necesaria');
+  assert.equal(display.primaryReadingQuestion, 'El otro progenitor aporta algo actualmente?');
+  assert.equal(
+    display.nextBestStep,
+    'Antes de avanzar con una accion concreta, conviene responder esta pregunta clave.',
+  );
+  assert.equal(display.followupType, 'critical_data');
+  assert.equal(display.isBlockingFollowup, true);
+  assert.ok(display.primaryReadingText.includes('orientar'));
+});
+
+test('adaptLegalResultForDisplay prioriza quick start como proximo mejor paso cuando no hay next_step conversacional', () => {
+  const display = adaptLegalResultForDisplay({
+    case_domain: 'divorcio',
+    quick_start: 'Reunir la documentacion basica para iniciar el tramite.',
+    case_strategy: {
+      recommended_actions: [
+        'Reunir la documentacion basica para iniciar el tramite.',
+        'Precisar el ultimo domicilio conyugal.',
+      ],
+    },
+    conversational: {
+      message: 'Hay base suficiente para orientar.',
+      should_ask_first: false,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: [],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(
+    display.nextBestStep,
+    'Lo mas conveniente ahora es reunir la documentacion basica para iniciar el tramite.',
+  );
+  assert.ok(!display.supportingNextSteps.includes(display.nextBestStep));
+});
+
+test('solo deja un nextBestStep principal y maximo dos supportingNextSteps', () => {
+  const display = adaptLegalResultForDisplay({
+    case_domain: 'alimentos',
+    quick_start: 'Iniciar el reclamo principal.',
+    case_strategy: {
+      recommended_actions: [
+        'Iniciar el reclamo principal.',
+        'Reunir partida de nacimiento.',
+        'Acreditar gastos del hijo.',
+        'Precisar domicilio relevante.',
+        'Ordenar recibos y comprobantes.',
+      ],
+    },
+    procedural_strategy: {
+      next_steps: [
+        'Iniciar el reclamo principal.',
+        'Reunir partida de nacimiento.',
+        'Acreditar gastos del hijo.',
+        'Precisar domicilio relevante.',
+      ],
+    },
+    conversational: {
+      message: 'Hay base suficiente para avanzar.',
+      should_ask_first: false,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: [],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(
+    display.nextBestStep,
+    'Lo mas conveniente ahora es iniciar el reclamo principal.',
+  );
+  assert.ok(Array.isArray(display.supportingNextSteps));
+  assert.ok(display.supportingNextSteps.length <= 2);
+});
+
+test('clasifica followup como critical_data cuando destraba un gap critico', () => {
+  const display = adaptLegalResultForDisplay({
+    conversational: {
+      message: 'Necesito confirmar un punto.',
+      question: 'En que provincia tramitaria esto?',
+      should_ask_first: true,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: ['jurisdiccion'],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    case_progress: {
+      stage: 'decision',
+      readiness_label: 'medium',
+      progress_status: 'stalled',
+      next_step_type: 'ask',
+      critical_gaps: [{ key: 'jurisdiccion', label: 'la jurisdiccion relevante' }],
+      important_gaps: [],
+      blocking_issues: [],
+      contradictions: [],
+      contradiction_count: 0,
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.followupType, 'critical_data');
+  assert.equal(display.isBlockingFollowup, true);
+  assert.ok(display.followupPurpose.includes('destrabar') || display.followupPurpose.includes('dato'));
+  assert.ok(display.followupWhy.length > 0);
+});
+
+test('clasifica followup como confirmation cuando hay contradiccion', () => {
+  const display = adaptLegalResultForDisplay({
+    conversational: {
+      message: 'Hay un punto inconsistente.',
+      question: 'Cual es el dato correcto sobre el domicilio?',
+      should_ask_first: true,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: [],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    case_progress: {
+      stage: 'inconsistente',
+      readiness_label: 'low',
+      progress_status: 'blocked',
+      next_step_type: 'resolve_contradiction',
+      critical_gaps: [],
+      important_gaps: [],
+      blocking_issues: [],
+      contradictions: [{ key: 'domicilio_relevante', summary: 'Hay dos domicilios distintos.' }],
+      contradiction_count: 1,
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.followupType, 'confirmation');
+  assert.equal(display.isBlockingFollowup, true);
+});
+
+test('bloquea followup innecesario cuando el caso ya permite avanzar', () => {
+  const display = adaptLegalResultForDisplay({
+    quick_start: 'Presentar el escrito inicial.',
+    conversational: {
+      message: 'Ya hay base suficiente para avanzar.',
+      question: 'Cuanto gana la otra parte?',
+      should_ask_first: true,
+      known_facts: { hay_hijos: true },
+      case_completeness: {
+        is_complete: false,
+        missing_critical: [],
+        missing_optional: ['ingresos'],
+        known_count: 1,
+      },
+    },
+    case_progress: {
+      stage: 'ejecucion',
+      readiness_label: 'high',
+      progress_status: 'ready',
+      next_step_type: 'execute',
+      critical_gaps: [],
+      important_gaps: [{ key: 'ingresos', label: 'los ingresos' }],
+      blocking_issues: [],
+      contradictions: [],
+      contradiction_count: 0,
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.primaryReadingQuestion, '');
+  assert.equal(display.followupType, '');
+  assert.equal(display.isBlockingFollowup, false);
+  assert.equal(display.nextStepPriority, 'high_priority_action');
+  assert.equal(display.decisionStrength, 'strong');
+});
+
+test('mantiene coherencia entre next step prudente y followup bloqueante', () => {
+  const display = adaptLegalResultForDisplay({
+    quick_start: 'Iniciar demanda.',
+    conversational: {
+      message: 'Antes de seguir, necesito un dato clave.',
+      question: 'En que ciudad vive hoy el nino?',
+      should_ask_first: true,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: ['domicilio_relevante'],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    case_progress: {
+      stage: 'decision',
+      readiness_label: 'medium',
+      progress_status: 'stalled',
+      next_step_type: 'ask',
+      critical_gaps: [{ key: 'domicilio_relevante', label: 'el domicilio relevante' }],
+      important_gaps: [],
+      blocking_issues: [],
+      contradictions: [],
+      contradiction_count: 0,
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.isBlockingFollowup, true);
+  assert.ok(display.nextBestStep.toLowerCase().includes('responder esta pregunta clave'));
+  assert.equal(display.decisionStrength, 'soft');
+  assert.ok(display.nextStepWhy.toLowerCase().includes('sin responder') || display.nextStepWhy.toLowerCase().includes('antes'));
+});
+
+test('evita duplicacion semantica entre primaryReading next step y supporting steps', () => {
+  const display = adaptLegalResultForDisplay({
+    quick_start: 'Reunir la documentacion basica.',
+    case_strategy: {
+      recommended_actions: [
+        'Reunir la documentacion basica.',
+        'Reunir documentacion basica.',
+        'Acreditar el vinculo.',
+        'Precisar jurisdiccion.',
+      ],
+    },
+    conversational: {
+      message: 'Lo mas conveniente ahora es reunir la documentacion basica.',
+      should_ask_first: false,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: [],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(
+    display.nextBestStep,
+    'Lo mas conveniente ahora es reunir la documentacion basica.',
+  );
+  assert.ok(display.supportingNextSteps.every((item) => !/documentacion basica/i.test(item)));
+});
+
+test('decisionStrength urgent endurece el wording del next step', () => {
+  const display = adaptLegalResultForDisplay({
+    quick_start: 'Pedir una medida provisoria.',
+    conversational: {
+      message: 'Hay una urgencia alimentaria actual.',
+      should_ask_first: false,
+      known_facts: { urgencia_alimentaria: true },
+      case_completeness: {
+        is_complete: false,
+        missing_critical: [],
+        missing_optional: [],
+        known_count: 1,
+      },
+    },
+    case_progress: {
+      stage: 'ejecucion',
+      readiness_label: 'high',
+      progress_status: 'ready',
+      next_step_type: 'execute',
+      critical_gaps: [],
+      important_gaps: [],
+      blocking_issues: [],
+      contradictions: [],
+      contradiction_count: 0,
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.decisionStrength, 'urgent');
+  assert.ok(display.nextBestStep.startsWith('Esto conviene hacerlo cuanto antes:'));
+  assert.ok(display.nextStepWhy.length > 0);
+});
+
+test('decisionStrength recommended usa wording intermedio', () => {
+  const display = adaptLegalResultForDisplay({
+    quick_start: 'Reunir la documentacion basica.',
+    conversational: {
+      message: 'Hay base razonable para ordenar el caso.',
+      should_ask_first: false,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: [],
+        missing_optional: ['domicilio'],
+        known_count: 0,
+      },
+    },
+    case_progress: {
+      stage: 'estructuracion',
+      readiness_label: 'medium',
+      progress_status: 'advancing',
+      next_step_type: 'decide',
+      critical_gaps: [],
+      important_gaps: [{ key: 'domicilio', label: 'el domicilio relevante' }],
+      blocking_issues: [],
+      contradictions: [],
+      contradiction_count: 0,
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.decisionStrength, 'recommended');
+  assert.ok(display.nextBestStep.startsWith('Lo mas conveniente ahora es'));
+});
+
+test('nextStepWhy y followupWhy no son excesivamente largos ni redundantes', () => {
+  const display = adaptLegalResultForDisplay({
+    quick_start: 'Iniciar el reclamo principal.',
+    conversational: {
+      message: 'Necesito confirmar un dato clave.',
+      question: 'En que jurisdiccion tramitaria esto?',
+      should_ask_first: true,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: ['jurisdiccion'],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    case_progress: {
+      stage: 'decision',
+      readiness_label: 'medium',
+      progress_status: 'stalled',
+      next_step_type: 'ask',
+      critical_gaps: [{ key: 'jurisdiccion', label: 'la jurisdiccion relevante' }],
+      important_gaps: [],
+      blocking_issues: [],
+      contradictions: [],
+      contradiction_count: 0,
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.ok(display.nextStepWhy.length <= 140);
+  assert.ok(display.followupWhy.length <= 140);
+  assert.notEqual(display.nextStepWhy, display.followupWhy);
+});
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Full integration: no [object Object] anywhere in serialized output
 // ═══════════════════════════════════════════════════════════════════════════

@@ -47,6 +47,10 @@ import {
   readLegalQueryContext,
   writeLegalQueryContext,
 } from './lib/legalQueryPreferences';
+import {
+  getLatestAssistantTurnId,
+  shouldScrollToAssistantTurn,
+} from './lib/threadScroll';
 
 const USE_EXPEDIENT_CONTEXT = false;
 const GUEST_QUERY_STORAGE_KEY = 'ailex_guest_query_count';
@@ -264,9 +268,9 @@ function UserMessage({ query, metadata }) {
   );
 }
 
-function AssistantErrorMessage({ error }) {
+function AssistantErrorMessage({ error, messageRef }) {
   return (
-    <div className="message message--assistant">
+    <div ref={messageRef} className={`message message--assistant ${styles.assistantTurnAnchor}`}>
       <div className="message__avatar">AI</div>
       <div className="message__bubble">
         <div className={styles.errorBox}>
@@ -278,9 +282,16 @@ function AssistantErrorMessage({ error }) {
   );
 }
 
-function AssistantResponseMessage({ response, requestContext, onQuickReply, activeQuickReply, quickReplyDisabled }) {
+function AssistantResponseMessage({
+  response,
+  requestContext,
+  onQuickReply,
+  activeQuickReply,
+  quickReplyDisabled,
+  messageRef,
+}) {
   return (
-    <div className="message message--assistant">
+    <div ref={messageRef} className={`message message--assistant ${styles.assistantTurnAnchor}`}>
       <div className="message__avatar">AI</div>
       <div className="message__bubble">
         <LegalQueryResults
@@ -392,7 +403,8 @@ function upsertWorkspaceEntry(previousState, nextEntry) {
 }
 
 export default function ChatPage() {
-  const bottomRef = useRef(null);
+  const assistantTurnRefs = useRef(new Map());
+  const lastScrolledAssistantTurnIdRef = useRef('');
   const [turns, setTurns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [workspaceBusy, setWorkspaceBusy] = useState(false);
@@ -426,10 +438,39 @@ export default function ChatPage() {
     () => deferredTurns.filter((turn) => turn.role === 'assistant' && turn.response).map((turn) => turn.response).slice(-3).reverse(),
     [deferredTurns],
   );
+  const latestAssistantTurnId = useMemo(() => getLatestAssistantTurnId(turns), [turns]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [turns, loading]);
+    if (!shouldScrollToAssistantTurn(latestAssistantTurnId, lastScrolledAssistantTurnIdRef.current)) {
+      return;
+    }
+
+    const targetNode = assistantTurnRefs.current.get(latestAssistantTurnId);
+    if (!targetNode) {
+      return;
+    }
+
+    const rafId = window.requestAnimationFrame(() => {
+      targetNode.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+        inline: 'nearest',
+      });
+      lastScrolledAssistantTurnIdRef.current = latestAssistantTurnId;
+    });
+
+    return () => window.cancelAnimationFrame(rafId);
+  }, [latestAssistantTurnId]);
+
+  function buildAssistantTurnRef(turnId) {
+    return (node) => {
+      if (node) {
+        assistantTurnRefs.current.set(turnId, node);
+        return;
+      }
+      assistantTurnRefs.current.delete(turnId);
+    };
+  }
 
   async function syncRemoteWorkspace(preferredActiveExpedienteId = '') {
     const [expedientesResponse, consultasResponse] = await Promise.all([listExpedientes({ limit: 100 }), listConsultas({ limit: 100 })]);
@@ -874,7 +915,7 @@ export default function ChatPage() {
                   {turns.map((turn) => turn.role === 'user' ? (
                     <UserMessage key={turn.id} query={turn.query} metadata={turn.metadata} />
                   ) : turn.error ? (
-                    <AssistantErrorMessage key={turn.id} error={turn.error} />
+                    <AssistantErrorMessage key={turn.id} error={turn.error} messageRef={buildAssistantTurnRef(turn.id)} />
                   ) : (
                     <AssistantResponseMessage
                       key={turn.id}
@@ -883,10 +924,10 @@ export default function ChatPage() {
                       onQuickReply={handleQuickReply}
                       activeQuickReply={activeQuickReply}
                       quickReplyDisabled={combinedBusy || guestLimitReached}
+                      messageRef={buildAssistantTurnRef(turn.id)}
                     />
                   ))}
                   {loading ? <LoadingMessage /> : null}
-                  <div ref={bottomRef} />
                 </div>
               </div>
 

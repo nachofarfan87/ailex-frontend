@@ -372,6 +372,7 @@
   padding: 22px 24px 24px;
 }
 
+
 .assistantLead {
   display: grid;
   gap: 8px;
@@ -668,6 +669,10 @@
   font-size: 0.98rem;
   line-height: 1.7;
   color: #f2f5f9;
+}
+
+.assistantTurnAnchor {
+  scroll-margin-top: 18px;
 }
 
 .panelText {
