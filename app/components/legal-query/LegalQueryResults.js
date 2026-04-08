@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 import styles from './LegalQuery.module.css';
 import readingStyles from './LegalQueryReading.module.css';
 import CaseWorkspacePanel from '../case-workspace/CaseWorkspacePanel';
@@ -118,6 +120,7 @@ function FollowupCard({
   question = '',
   options = [],
   onQuickReply,
+  onSubmitAnswer,
   activeQuickReply = '',
   quickReplyDisabled = false,
   hint = '',
@@ -131,6 +134,22 @@ function FollowupCard({
       : followupType === 'confirmation'
         ? 'Confirmacion necesaria'
         : 'Dato para afinar';
+  const [answer, setAnswer] = useState('');
+  const canSubmit = Boolean(onSubmitAnswer) && !quickReplyDisabled && answer.trim();
+
+  function handleSubmit() {
+    const nextAnswer = answer.trim();
+    if (!nextAnswer || !onSubmitAnswer) return;
+    onSubmitAnswer(nextAnswer);
+    setAnswer('');
+  }
+
+  function handleKeyDown(event) {
+    if (event.key !== 'Enter' || event.shiftKey) return;
+    event.preventDefault();
+    if (!canSubmit) return;
+    handleSubmit();
+  }
 
   return (
     <section className={readingStyles.followupCard}>
@@ -158,6 +177,31 @@ function FollowupCard({
               </button>
             );
           })}
+        </div>
+      ) : null}
+      {onSubmitAnswer ? (
+        <div className={styles.followupAnswerBox}>
+          <p className={styles.followupAnswerLabel}>Tu respuesta</p>
+          <div className={styles.followupAnswerRow}>
+            <input
+              type="text"
+              value={answer}
+              onChange={(event) => setAnswer(event.target.value)}
+              onKeyDown={handleKeyDown}
+              className={styles.followupAnswerInput}
+              placeholder="Escribi tu respuesta..."
+              aria-label="Respuesta a la aclaracion de AILEX"
+              disabled={quickReplyDisabled}
+            />
+            <button
+              type="button"
+              className={styles.followupAnswerButton}
+              onClick={handleSubmit}
+              disabled={!canSubmit}
+            >
+              Responder
+            </button>
+          </div>
         </div>
       ) : null}
     </section>
@@ -384,6 +428,7 @@ export default function LegalQueryResults({
             question={display.primaryReadingQuestion}
             options={display.conversational.options}
             onQuickReply={onQuickReply}
+            onSubmitAnswer={onSubmitAnswer || onQuickReply}
             activeQuickReply={activeQuickReply}
             quickReplyDisabled={quickReplyDisabled}
             hint={display.followupWhy || display.followupPurpose || snapshot?.followupDirectionHint || ''}
