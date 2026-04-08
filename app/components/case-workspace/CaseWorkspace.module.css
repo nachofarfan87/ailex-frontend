@@ -1,6 +1,8 @@
 .panel {
   display: grid;
   gap: 16px;
+  min-width: 0;
+  width: 100%;
   padding: 18px 20px 20px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 24px;
@@ -32,6 +34,7 @@
 .emptyState {
   display: grid;
   gap: 10px;
+  min-width: 0;
 }
 
 .eyebrow,
@@ -77,6 +80,8 @@
   margin: 0;
   color: var(--text-secondary);
   line-height: 1.68;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .summary {
@@ -92,18 +97,21 @@
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
   gap: 12px;
+  min-width: 0;
 }
 
 .miniGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  min-width: 0;
 }
 
 .miniCard,
 .evidenceColumn,
 .handoffCard,
 .questionCard {
+  min-width: 0;
   padding: 14px 16px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.07);
@@ -259,8 +267,9 @@
 
 .evidenceGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
   gap: 12px;
+  min-width: 0;
 }
 
 .criticalColumn {
