@@ -297,6 +297,50 @@ test('adaptLegalResultForDisplay arma una capa de lectura principal para aclarac
   assert.ok(display.primaryReadingText.includes('orientar'));
 });
 
+test('visibiliza prudencia cuando se puede avanzar con resguardos', () => {
+  const display = adaptLegalResultForDisplay({
+    case_domain: 'alimentos',
+    professional_judgment: {
+      decision_transparency: {
+        applies: true,
+        technical_trace: {
+          decision_intent: 'act_with_guardrails',
+          calibrated_state: 'guarded_action',
+          confidence_context: { summary: 'Hay base util, pero con limites.' },
+        },
+        professional_explanation: {
+          decision_explanation: 'Hoy conviene actuar con prudencia.',
+        },
+        user_explanation: {
+          what_limits_this: 'Todavia conviene confirmar los ingresos actuales.',
+        },
+        alternatives_considered: [],
+      },
+      recommendation_stance: 'guided_action',
+      prudence_level: 'medium',
+      dominant_factor: 'Hay una urgencia practica.',
+    },
+    conversational: {
+      message: 'Hay base suficiente para orientar.',
+      should_ask_first: false,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: [],
+        missing_optional: ['ingresos'],
+        known_count: 0,
+      },
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.decisionTransparencySummary.shouldSurfacePrudence, true);
+  assert.equal(
+    display.decisionTransparencySummary.userLimit,
+    'Todavia conviene confirmar los ingresos actuales.',
+  );
+});
+
 test('adaptLegalResultForDisplay prioriza quick start como proximo mejor paso cuando no hay next_step conversacional', () => {
   const display = adaptLegalResultForDisplay({
     case_domain: 'divorcio',
@@ -700,6 +744,262 @@ test('professional_judgment explica para que sirve el follow-up sin duplicar el 
     'Esto permite cerrar la jurisdiccion relevante, que hoy condiciona el siguiente paso.',
   );
   assert.notEqual(display.followupWhy, display.nextStepWhy);
+});
+
+test('decision_transparency refuerza la explicacion breve sin recalcular logica en frontend', () => {
+  const display = adaptLegalResultForDisplay({
+    professional_judgment: {
+      applies: true,
+      dominant_factor: 'Lo que mas pesa hoy es que ya hay base suficiente para mover el caso.',
+      best_next_move: 'Presentar el reclamo principal.',
+      why_this_matters_now: 'Porque ya hay base suficiente para pasar a accion.',
+      decision_transparency: {
+        applies: true,
+        technical_trace: {
+          decision_intent: 'act',
+          clarification_status: 'none',
+          confidence_context: {
+            summary: 'La decision tiene buena claridad y tambien una base bastante estable.',
+            decision_confidence_level: 'high',
+          },
+          decision_trace: ['actionability dominates because the base is already usable'],
+        },
+        professional_explanation: {
+          decision_explanation:
+            'La decision prioriza presentar el reclamo principal porque ese movimiento hoy ordena mejor el caso.',
+        },
+        user_explanation: {
+          user_why_this:
+            'Este paso se prioriza porque hoy es el que mejor hace avanzar el caso.',
+        },
+        alternatives_considered: [
+          {
+            option: 'Seguir preguntando antes de actuar',
+            status: 'deferred',
+            reason: 'No se priorizo porque la base ya permite avanzar.',
+          },
+        ],
+      },
+    },
+    conversational: {
+      message: 'Hay base suficiente para avanzar.',
+      should_ask_first: false,
+      known_facts: {},
+      case_completeness: {
+        is_complete: true,
+        missing_critical: [],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(
+    display.nextStepWhy,
+    'Este paso se prioriza porque hoy es el que mejor hace avanzar el caso.',
+  );
+  assert.ok(display.primaryReadingSupport.includes('prioriza presentar el reclamo principal'));
+  assert.equal(display.decisionTransparency.applies, true);
+  assert.equal(display.decisionTransparency.technical_trace.decision_intent, 'act');
+  assert.equal(display.decisionTransparencySummary.visibleAlternatives.length, 1);
+  assert.equal(
+    display.decisionTransparencySummary.visibleAlternatives[0].option,
+    'Seguir preguntando antes de actuar',
+  );
+});
+
+test('decision_transparency ordena limitingSignals por jerarquia util', () => {
+  const display = adaptLegalResultForDisplay({
+    professional_judgment: {
+      applies: true,
+      decision_transparency: {
+        applies: true,
+        professional_explanation: {
+          blocking_signals: ['Primero hay que cerrar un bloqueo fuerte.'],
+          contradictions: ['Existe una contradiccion sobre el domicilio.'],
+          relevant_missing: ['Falta cerrar la jurisdiccion relevante.'],
+          weakening_signals: ['La base actual todavia es fragil.'],
+        },
+      },
+    },
+    conversational: {
+      message: 'Necesito una aclaracion breve.',
+      should_ask_first: false,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: [],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.deepEqual(display.decisionTransparencySummary.limitingSignals, [
+    'Primero hay que cerrar un bloqueo fuerte.',
+    'Existe una contradiccion sobre el domicilio.',
+    'Falta cerrar la jurisdiccion relevante.',
+    'La base actual todavia es fragil.',
+  ]);
+});
+
+test('decision_transparency no fuerza alternativas cuando no agregan valor real', () => {
+  const display = adaptLegalResultForDisplay({
+    professional_judgment: {
+      applies: true,
+      decision_transparency: {
+        applies: true,
+        technical_trace: {
+          decision_intent: 'prepare',
+          clarification_status: 'ambiguous',
+          precision_required: true,
+          confidence_context: {
+            summary: 'La orientacion mantiene direccion, pero la respuesta actual todavia no alcanza para sostenerla con mas firmeza.',
+          },
+        },
+        professional_explanation: {
+          decision_explanation: 'La decision mantiene una orientacion util, pero todavia conviene precisar un dato importante.',
+          driving_signals: ['La base actual ya permite seguir ordenando el caso.'],
+          weakening_signals: ['La respuesta actual todavia deja abierta una ambiguedad relevante.'],
+        },
+        user_explanation: {
+          user_why_this: 'Esta pregunta ayuda a definir el dato que mas puede cambiar la orientacion.',
+          what_limits_this: 'Con esta respuesta todavia no alcanza para cerrar del todo la orientacion.',
+          what_would_change_this: 'Una respuesta un poco mas concreta puede cambiar bastante la firmeza de la orientacion.',
+        },
+        alternatives_considered: [],
+      },
+    },
+    conversational: {
+      message: 'Necesito una aclaracion breve.',
+      question: 'El otro progenitor aporta algo actualmente?',
+      should_ask_first: true,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: [],
+        missing_optional: ['aportes_actuales'],
+        known_count: 0,
+      },
+    },
+    case_progress: {
+      stage: 'decision',
+      readiness_label: 'medium',
+      progress_status: 'stalled',
+      next_step_type: 'ask',
+      critical_gaps: [],
+      important_gaps: [{ key: 'aportes_actuales', label: 'si existe algun aporte actual' }],
+      blocking_issues: [],
+      contradictions: [],
+      contradiction_count: 0,
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.decisionTransparency.applies, true);
+  assert.equal(display.decisionTransparencySummary.visibleAlternatives.length, 0);
+  assert.ok(display.decisionTransparencySummary.userLimit.toLowerCase().includes('todavia no alcanza'));
+  assert.ok(display.followupWhy.toLowerCase().includes('respuesta un poco mas concreta'));
+});
+
+test('primaryReadingSupport usa userLimit cuando la decision sigue blanda o bloqueada', () => {
+  const display = adaptLegalResultForDisplay({
+    professional_judgment: {
+      applies: true,
+      decision_transparency: {
+        applies: true,
+        user_explanation: {
+          what_limits_this: 'La orientacion todavia depende de cerrar la jurisdiccion relevante.',
+        },
+      },
+    },
+    conversational: {
+      message: 'Necesito confirmar un dato clave.',
+      question: 'En que jurisdiccion tramitaria esto?',
+      should_ask_first: true,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: ['jurisdiccion'],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    case_progress: {
+      stage: 'decision',
+      readiness_label: 'medium',
+      progress_status: 'stalled',
+      next_step_type: 'ask',
+      critical_gaps: [{ key: 'jurisdiccion', label: 'la jurisdiccion relevante' }],
+      important_gaps: [],
+      blocking_issues: [],
+      contradictions: [],
+      contradiction_count: 0,
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(
+    display.primaryReadingSupport,
+    'La orientacion todavia depende de cerrar la jurisdiccion relevante.',
+  );
+});
+
+test('primaryReadingSupport no reemplaza soporte principal en un caso firme', () => {
+  const display = adaptLegalResultForDisplay({
+    professional_judgment: {
+      applies: true,
+      dominant_factor: 'Ya hay base suficiente para avanzar.',
+      recommendation_stance: 'firm_action',
+      decision_transparency: {
+        applies: true,
+        technical_trace: {
+          confidence_context: {
+            summary: 'La decision tiene buena claridad y una base estable.',
+          },
+        },
+        professional_explanation: {
+          decision_explanation:
+            'Hoy conviene presentar el reclamo principal porque ese paso ya ordena mejor el caso.',
+        },
+        user_explanation: {
+          what_limits_this: 'Todavia seria util reforzar un detalle secundario.',
+        },
+      },
+    },
+    conversational: {
+      message: 'Hay base suficiente para avanzar.',
+      should_ask_first: false,
+      known_facts: {
+        hay_hijos: true,
+      },
+      case_completeness: {
+        is_complete: true,
+        missing_critical: [],
+        missing_optional: ['detalle_secundario'],
+        known_count: 1,
+      },
+    },
+    case_progress: {
+      stage: 'ejecucion',
+      readiness_label: 'high',
+      progress_status: 'ready',
+      next_step_type: 'execute',
+      critical_gaps: [],
+      important_gaps: [{ key: 'detalle_secundario', label: 'un detalle secundario' }],
+      blocking_issues: [],
+      contradictions: [],
+      contradiction_count: 0,
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(
+    display.primaryReadingSupport,
+    'Hoy conviene presentar el reclamo principal porque ese paso ya ordena mejor el caso.',
+  );
 });
 
 test('nextStepWhy y followupWhy no son excesivamente largos ni redundantes', () => {

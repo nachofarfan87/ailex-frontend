@@ -91,6 +91,11 @@ function normalizeConversationalResponse(raw) {
 
 function normalizeProfessionalJudgment(raw) {
   const safe = asObject(raw);
+  const transparency = asObject(safe.decision_transparency);
+  const technicalTrace = asObject(transparency.technical_trace);
+  const confidenceContext = asObject(technicalTrace.confidence_context);
+  const professionalExplanation = asObject(transparency.professional_explanation);
+  const userExplanation = asObject(transparency.user_explanation);
   return {
     applies: Boolean(safe.applies),
     dominant_factor: pickFirstText(safe.dominant_factor),
@@ -107,6 +112,59 @@ function normalizeProfessionalJudgment(raw) {
     missing_to_strengthen: pickFirstText(safe.missing_to_strengthen),
     followup_why: pickFirstText(safe.followup_why),
     highlights: asArray(safe.highlights).map((item) => extractDisplayText(item)).filter(Boolean),
+    decision_transparency: {
+      applies: Boolean(transparency.applies),
+      technical_trace: {
+        decision_intent: String(technicalTrace.decision_intent || '').trim(),
+        calibrated_state: String(technicalTrace.calibrated_state || '').trim(),
+        dominant_signal: String(technicalTrace.dominant_signal || '').trim(),
+        dominant_signal_score:
+          typeof technicalTrace.dominant_signal_score === 'number'
+            ? technicalTrace.dominant_signal_score
+            : null,
+      signal_scores: asObject(technicalTrace.signal_scores),
+      decision_trace: asArray(technicalTrace.decision_trace).map((item) => extractDisplayText(item)).filter(Boolean),
+      rule_trace: asArray(technicalTrace.rule_trace).map((item) => extractDisplayText(item)).filter(Boolean),
+      clarification_status: String(technicalTrace.clarification_status || '').trim(),
+      precision_required: Boolean(technicalTrace.precision_required),
+      followup_present: Boolean(technicalTrace.followup_present),
+      confidence_context: {
+        summary: pickFirstText(confidenceContext.summary),
+          decision_confidence_level: String(confidenceContext.decision_confidence_level || '').trim(),
+          confidence_clarity_score:
+            typeof confidenceContext.confidence_clarity_score === 'number'
+              ? confidenceContext.confidence_clarity_score
+              : null,
+          confidence_stability_score:
+            typeof confidenceContext.confidence_stability_score === 'number'
+              ? confidenceContext.confidence_stability_score
+              : null,
+        },
+      },
+      professional_explanation: {
+        decision_explanation: pickFirstText(professionalExplanation.decision_explanation),
+        driving_signals: asArray(professionalExplanation.driving_signals).map((item) => extractDisplayText(item)).filter(Boolean),
+        weakening_signals: asArray(professionalExplanation.weakening_signals).map((item) => extractDisplayText(item)).filter(Boolean),
+        blocking_signals: asArray(professionalExplanation.blocking_signals).map((item) => extractDisplayText(item)).filter(Boolean),
+        relevant_missing: asArray(professionalExplanation.relevant_missing).map((item) => extractDisplayText(item)).filter(Boolean),
+        contradictions: asArray(professionalExplanation.contradictions).map((item) => extractDisplayText(item)).filter(Boolean),
+      },
+      user_explanation: {
+        user_why_this: pickFirstText(userExplanation.user_why_this),
+        what_limits_this: pickFirstText(userExplanation.what_limits_this),
+        what_would_change_this: pickFirstText(userExplanation.what_would_change_this),
+      },
+      alternatives_considered: asArray(transparency.alternatives_considered)
+        .map((item) => {
+          const safeItem = asObject(item);
+          return {
+            option: pickFirstText(safeItem.option),
+            status: String(safeItem.status || '').trim(),
+            reason: pickFirstText(safeItem.reason),
+          };
+        })
+        .filter((item) => item.option || item.reason),
+    },
   };
 }
 
@@ -462,6 +520,22 @@ function buildNextStepWhy({
 }) {
   if (!nextBestStep) return '';
   const judgmentWhy = String(professionalJudgment?.why_this_matters_now || '').trim();
+  const transparencyWhy = String(
+    professionalJudgment?.decision_transparency?.user_explanation?.user_why_this || '',
+  ).trim();
+  const transparencyLimit = String(
+    professionalJudgment?.decision_transparency?.user_explanation?.what_limits_this || '',
+  ).trim();
+  if (transparencyWhy) {
+    return transparencyWhy.length > 150 ? splitSentences(transparencyWhy)[0] : transparencyWhy;
+  }
+  if (
+    followup.isBlockingFollowup &&
+    transparencyLimit &&
+    !textLooksRedundant(transparencyLimit, [judgmentWhy])
+  ) {
+    return transparencyLimit.length > 150 ? splitSentences(transparencyLimit)[0] : transparencyLimit;
+  }
   if (judgmentWhy) {
     return judgmentWhy.length > 150 ? splitSentences(judgmentWhy)[0] : judgmentWhy;
   }
@@ -502,8 +576,14 @@ function buildFollowupWhy({
 }) {
   if (!followup.followupType) return '';
   const judgmentWhy = String(professionalJudgment?.followup_why || '').trim();
+  const userChangeHint = String(
+    professionalJudgment?.decision_transparency?.user_explanation?.what_would_change_this || '',
+  ).trim();
   if (judgmentWhy) {
     return judgmentWhy.length > 150 ? splitSentences(judgmentWhy)[0] : judgmentWhy;
+  }
+  if (userChangeHint) {
+    return userChangeHint.length > 150 ? splitSentences(userChangeHint)[0] : userChangeHint;
   }
   if (caseProgressSnapshot?.questionTargetHint) {
     const hint = String(caseProgressSnapshot.questionTargetHint || '').trim();
@@ -522,14 +602,77 @@ function buildPrimaryReadingSupport({
   professionalJudgment,
   caseProgressSnapshot,
   modeDescription,
+  decisionStrength,
+  followup,
 }) {
+  const userLimit = String(
+    professionalJudgment?.decision_transparency?.user_explanation?.what_limits_this || '',
+  ).trim();
+  if (
+    userLimit &&
+    (decisionStrength === 'soft' || followup?.isBlockingFollowup)
+  ) {
+    return userLimit;
+  }
+
   return (
+    String(professionalJudgment?.decision_transparency?.professional_explanation?.decision_explanation || '').trim() ||
+    String(professionalJudgment?.decision_transparency?.technical_trace?.confidence_context?.summary || '').trim() ||
     String(professionalJudgment?.dominant_factor || '').trim() ||
     String(professionalJudgment?.blocking_issue || '').trim() ||
     String(professionalJudgment?.practical_risk || '').trim() ||
     String(caseProgressSnapshot?.caseDirection || '').trim() ||
     String(modeDescription || '').trim()
   );
+}
+
+function orderTransparencyLimitingSignals({
+  professionalExplanation,
+}) {
+  return deduplicateItems(
+    [
+      ...asArray(professionalExplanation.blocking_signals),
+      ...asArray(professionalExplanation.contradictions),
+      ...asArray(professionalExplanation.relevant_missing),
+      ...asArray(professionalExplanation.weakening_signals),
+    ].map((item) => extractDisplayText(item)).filter(Boolean),
+  );
+}
+
+function buildDecisionTransparencySummary(decisionTransparency) {
+  const transparency = asObject(decisionTransparency);
+  const professionalExplanation = asObject(transparency.professional_explanation);
+  const userExplanation = asObject(transparency.user_explanation);
+  const technicalTrace = asObject(transparency.technical_trace);
+  const confidenceContext = asObject(technicalTrace.confidence_context);
+  const alternatives = asArray(transparency.alternatives_considered)
+    .map((item) => {
+      const safeItem = asObject(item);
+      return {
+        option: pickFirstText(safeItem.option),
+        status: String(safeItem.status || '').trim(),
+        reason: pickFirstText(safeItem.reason),
+      };
+    })
+    .filter((item) => (item.option || item.reason) && item.reason);
+
+  return {
+    applies: Boolean(transparency.applies),
+    decisionExplanation: pickFirstText(professionalExplanation.decision_explanation),
+    drivingSignals: deduplicateItems(asArray(professionalExplanation.driving_signals).map((item) => extractDisplayText(item)).filter(Boolean)).slice(0, 3),
+    limitingSignals: orderTransparencyLimitingSignals({
+      professionalExplanation,
+    }).slice(0, 4),
+    confidenceSummary: pickFirstText(professionalExplanation.confidence_context, confidenceContext.summary),
+    userWhyThis: pickFirstText(userExplanation.user_why_this),
+    userLimit: pickFirstText(userExplanation.what_limits_this),
+    userChangeHint: pickFirstText(userExplanation.what_would_change_this),
+    shouldSurfacePrudence:
+      technicalTrace.decision_intent === 'act_with_guardrails' ||
+      technicalTrace.calibrated_state === 'guarded_action' ||
+      Boolean(pickFirstText(userExplanation.what_limits_this)),
+    visibleAlternatives: alternatives.slice(0, 2),
+  };
 }
 
 function buildProfessionalJudgmentHighlights(professionalJudgment) {
@@ -742,7 +885,12 @@ export function adaptLegalResultForDisplay(response) {
     professionalJudgment,
     caseProgressSnapshot,
     modeDescription,
+    decisionStrength,
+    followup: effectiveFollowup,
   });
+  const decisionTransparencySummary = buildDecisionTransparencySummary(
+    professionalJudgment.decision_transparency,
+  );
   const professionalJudgmentHighlights = buildProfessionalJudgmentHighlights(professionalJudgment);
 
   return {
@@ -791,6 +939,8 @@ export function adaptLegalResultForDisplay(response) {
     followupWhy,
     isBlockingFollowup: effectiveFollowup.isBlockingFollowup,
     professionalJudgment,
+    decisionTransparency: professionalJudgment.decision_transparency,
+    decisionTransparencySummary,
     professionalJudgmentHighlights,
     conversational: {
       ...conversational,

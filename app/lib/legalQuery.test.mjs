@@ -86,6 +86,35 @@ test('normalizeLegalQueryResponse preserva professional_judgment para la UI', ()
         'Lo que mas pesa hoy es que ya hay base suficiente para actuar.',
         'El riesgo practico es demorar una medida util.',
       ],
+      decision_transparency: {
+        applies: true,
+        technical_trace: {
+          decision_intent: 'act',
+          decision_trace: ['actionability dominates because the base is already usable'],
+          clarification_status: 'none',
+          precision_required: false,
+          confidence_context: {
+            summary: 'La decision tiene buena claridad y tambien una base bastante estable.',
+            decision_confidence_level: 'high',
+            confidence_clarity_score: 84,
+            confidence_stability_score: 81,
+          },
+        },
+        professional_explanation: {
+          decision_explanation:
+            'La decision prioriza presentar el reclamo principal porque ese movimiento hoy ordena mejor el caso.',
+        },
+        user_explanation: {
+          user_why_this: 'Este paso se prioriza porque hoy es el que mejor hace avanzar el caso.',
+        },
+        alternatives_considered: [
+          {
+            option: 'Seguir preguntando antes de actuar',
+            status: 'deferred',
+            reason: 'No se priorizo porque la base ya permite avanzar.',
+          },
+        ],
+      },
     },
   });
 
@@ -96,4 +125,17 @@ test('normalizeLegalQueryResponse preserva professional_judgment para la UI', ()
     'Presentar el reclamo principal.',
   );
   assert.equal(normalized.professional_judgment.highlights.length, 2);
+  assert.equal(normalized.professional_judgment.decision_transparency.applies, true);
+  assert.equal(
+    normalized.professional_judgment.decision_transparency.technical_trace.decision_intent,
+    'act',
+  );
+  assert.equal(
+    normalized.professional_judgment.decision_transparency.technical_trace.clarification_status,
+    'none',
+  );
+  assert.equal(
+    normalized.professional_judgment.decision_transparency.user_explanation.user_why_this,
+    'Este paso se prioriza porque hoy es el que mejor hace avanzar el caso.',
+  );
 });

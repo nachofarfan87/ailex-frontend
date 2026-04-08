@@ -240,6 +240,23 @@ export default function LegalQueryResults({
       : '';
   const primaryReadingSupport =
     display.primaryReadingSupport || snapshot?.caseDirection || display.modeDescription;
+  const decisionTransparencySummary = display.decisionTransparencySummary || {};
+  const userLimitHint =
+    (display.decisionStrength === 'soft' ||
+      display.isBlockingFollowup ||
+      decisionTransparencySummary.shouldSurfacePrudence) &&
+    decisionTransparencySummary.userLimit &&
+    decisionTransparencySummary.userLimit !== primaryReadingSupport
+      ? decisionTransparencySummary.userLimit
+      : '';
+  const prudenceBridge =
+    display.decisionStrength !== 'strong' &&
+    display.decisionStrength !== 'urgent' &&
+    !display.isBlockingFollowup &&
+    decisionTransparencySummary.shouldSurfacePrudence &&
+    decisionTransparencySummary.userLimit
+      ? `Podes avanzar, pero ojo con esto: ${decisionTransparencySummary.userLimit}`
+      : '';
   const caseMapCount = sumCounts([
     display.primaryClarifications.length,
     display.primaryNextSteps.length,
@@ -302,6 +319,9 @@ export default function LegalQueryResults({
           {primaryReadingSupport ? (
             <p className={readingStyles.primaryReadingSupport}>{primaryReadingSupport}</p>
           ) : null}
+          {userLimitHint ? (
+            <p className={styles.subtleHint}>{userLimitHint}</p>
+          ) : null}
         </section>
 
         {nextBestStep ? (
@@ -327,6 +347,9 @@ export default function LegalQueryResults({
             ) : null}
             {nextBestStepHint ? (
               <p className={readingStyles.nextBestStepHint}>{nextBestStepHint}</p>
+            ) : null}
+            {prudenceBridge ? (
+              <p className={styles.subtleHintStrong}>{prudenceBridge}</p>
             ) : null}
             {display.supportingNextSteps?.length ? (
               <div className={readingStyles.nextBestStepSupport}>
@@ -523,6 +546,49 @@ export default function LegalQueryResults({
               <section className={`${styles.panel} ${styles.resultsSection}`}>
                 <h4 className={styles.panelTitle}>Juicio profesional aplicado</h4>
                 <CompactList items={display.professionalJudgmentHighlights} />
+              </section>
+            ) : null}
+
+            {decisionTransparencySummary.applies ? (
+              <section className={`${styles.panel} ${styles.resultsSection}`}>
+                <h4 className={styles.panelTitle}>Transparencia de decision</h4>
+                {decisionTransparencySummary.decisionExplanation ? (
+                  <p className={styles.panelText}>
+                    {decisionTransparencySummary.decisionExplanation}
+                  </p>
+                ) : null}
+                {decisionTransparencySummary.drivingSignals?.length ? (
+                  <>
+                    <h5 className={styles.panelSubtitle}>Que sostiene esta orientacion</h5>
+                    <CompactList items={decisionTransparencySummary.drivingSignals} />
+                  </>
+                ) : null}
+                {decisionTransparencySummary.limitingSignals?.length ? (
+                  <>
+                    <h5 className={styles.panelSubtitle}>Que hoy la limita</h5>
+                    <CompactList items={decisionTransparencySummary.limitingSignals} />
+                  </>
+                ) : null}
+                {decisionTransparencySummary.confidenceSummary ? (
+                  <p className={styles.panelText}>
+                    {decisionTransparencySummary.confidenceSummary}
+                  </p>
+                ) : null}
+                {decisionTransparencySummary.visibleAlternatives?.length ? (
+                  <>
+                    <h5 className={styles.panelSubtitle}>Alternativas no priorizadas</h5>
+                    <ul className={styles.compactList}>
+                      {decisionTransparencySummary.visibleAlternatives.map((item, index) => (
+                        <li
+                          key={`${item.option || item.reason}-${index}`}
+                          className={styles.compactItem}
+                        >
+                          <strong>{item.option || 'Alternativa'}:</strong> {item.reason}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ) : null}
               </section>
             ) : null}
 

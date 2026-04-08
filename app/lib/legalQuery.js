@@ -177,6 +177,75 @@ function normalizeProfessionalJudgment(value) {
     missing_to_strengthen: extractDisplayText(safeValue.missing_to_strengthen),
     followup_why: extractDisplayText(safeValue.followup_why),
     highlights: asArray(safeValue.highlights).map(extractDisplayText).filter(Boolean),
+    decision_transparency: normalizeDecisionTransparency(safeValue.decision_transparency),
+  };
+}
+
+function normalizeDecisionTransparency(value) {
+  const safeValue = asObject(value);
+  const technicalTrace = asObject(safeValue.technical_trace);
+  const confidenceContext = asObject(technicalTrace.confidence_context);
+  const professionalExplanation = asObject(safeValue.professional_explanation);
+  const userExplanation = asObject(safeValue.user_explanation);
+
+  return {
+    applies: Boolean(safeValue.applies),
+    technical_trace: {
+      decision_intent: String(technicalTrace.decision_intent || '').trim(),
+      calibrated_state: String(technicalTrace.calibrated_state || '').trim(),
+      dominant_signal: String(technicalTrace.dominant_signal || '').trim(),
+      dominant_signal_score:
+        typeof technicalTrace.dominant_signal_score === 'number'
+          ? technicalTrace.dominant_signal_score
+          : null,
+      signal_scores: asObject(technicalTrace.signal_scores),
+      decision_trace: asArray(technicalTrace.decision_trace).map(extractDisplayText).filter(Boolean),
+      rule_trace: asArray(technicalTrace.rule_trace).map(extractDisplayText).filter(Boolean),
+      clarification_status: String(technicalTrace.clarification_status || '').trim(),
+      precision_required: Boolean(technicalTrace.precision_required),
+      followup_present: Boolean(technicalTrace.followup_present),
+      confidence_context: {
+        summary: extractDisplayText(confidenceContext.summary),
+        decision_confidence_score:
+          typeof confidenceContext.decision_confidence_score === 'number'
+            ? confidenceContext.decision_confidence_score
+            : null,
+        decision_confidence_level: String(confidenceContext.decision_confidence_level || '').trim(),
+        confidence_clarity_score:
+          typeof confidenceContext.confidence_clarity_score === 'number'
+            ? confidenceContext.confidence_clarity_score
+            : null,
+        confidence_stability_score:
+          typeof confidenceContext.confidence_stability_score === 'number'
+            ? confidenceContext.confidence_stability_score
+            : null,
+        dominance_level: String(confidenceContext.dominance_level || '').trim(),
+        blocking_severity: String(confidenceContext.blocking_severity || '').trim(),
+        prudence_level: String(confidenceContext.prudence_level || '').trim(),
+      },
+    },
+    professional_explanation: {
+      decision_explanation: extractDisplayText(professionalExplanation.decision_explanation),
+      driving_signals: asArray(professionalExplanation.driving_signals).map(extractDisplayText).filter(Boolean),
+      weakening_signals: asArray(professionalExplanation.weakening_signals).map(extractDisplayText).filter(Boolean),
+      blocking_signals: asArray(professionalExplanation.blocking_signals).map(extractDisplayText).filter(Boolean),
+      relevant_missing: asArray(professionalExplanation.relevant_missing).map(extractDisplayText).filter(Boolean),
+      contradictions: asArray(professionalExplanation.contradictions).map(extractDisplayText).filter(Boolean),
+      confidence_context: extractDisplayText(professionalExplanation.confidence_context),
+    },
+    user_explanation: {
+      user_why_this: extractDisplayText(userExplanation.user_why_this),
+      what_limits_this: extractDisplayText(userExplanation.what_limits_this),
+      what_would_change_this: extractDisplayText(userExplanation.what_would_change_this),
+    },
+    alternatives_considered: asArray(safeValue.alternatives_considered).map((item) => {
+      const safeItem = asObject(item);
+      return {
+        option: extractDisplayText(safeItem.option),
+        status: String(safeItem.status || '').trim(),
+        reason: extractDisplayText(safeItem.reason),
+      };
+    }),
   };
 }
 

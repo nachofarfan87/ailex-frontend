@@ -1,4 +1,4 @@
-import { clearAuthSession, getStoredAccessToken } from './authSession';
+import { clearAuthSession, getStoredAccessToken } from './authSession.js';
 
 // En producción: NEXT_PUBLIC_API_URL = URL del backend Railway (ej: https://web-production-9d32a.up.railway.app)
 // En dev local: no definir → usa rutas relativas que Next.js resuelve localmente
@@ -10,6 +10,60 @@ class AuthExpiredError extends Error {
     this.name = 'AuthExpiredError';
     this.status = 401;
   }
+}
+
+export function normalizeApiErrorMessage(error, fallback = 'Error inesperado del backend.') {
+  if (typeof error === 'string') {
+    const text = error.trim();
+    return text || fallback;
+  }
+
+  if (Array.isArray(error)) {
+    const parts = error.map((item) => normalizeApiErrorMessage(item, '')).filter(Boolean);
+    return parts.length ? parts.join(' | ') : fallback;
+  }
+
+  if (!error || typeof error !== 'object') {
+    return fallback;
+  }
+
+  if (typeof error.message === 'string' && error.message.trim()) {
+    return error.message.trim();
+  }
+
+  if (typeof error.detail === 'string' && error.detail.trim()) {
+    return error.detail.trim();
+  }
+
+  if (Array.isArray(error.detail) && error.detail.length) {
+    return normalizeApiErrorMessage(error.detail, fallback);
+  }
+
+  if (error.detail && typeof error.detail === 'object') {
+    const detail = error.detail;
+    if (typeof detail.message === 'string' && detail.message.trim()) {
+      return detail.message.trim();
+    }
+    const detailReasons = Array.isArray(detail.reasons)
+      ? detail.reasons.map((item) => String(item || '').trim()).filter(Boolean)
+      : [];
+    if (detailReasons.length) {
+      return detailReasons.join(' | ');
+    }
+  }
+
+  if (Array.isArray(error.reasons) && error.reasons.length) {
+    const reasons = error.reasons.map((item) => String(item || '').trim()).filter(Boolean);
+    if (reasons.length) {
+      return reasons.join(' | ');
+    }
+  }
+
+  if (typeof error.error === 'string' && error.error.trim()) {
+    return error.error.trim();
+  }
+
+  return fallback;
 }
 
 async function request(path, options = {}) {
@@ -37,7 +91,7 @@ async function request(path, options = {}) {
     }
 
     const error = await response.json().catch(() => ({ detail: response.statusText }));
-    const errorMsg = error.detail || error.message || `HTTP ${response.status}`;
+    const errorMsg = normalizeApiErrorMessage(error, `HTTP ${response.status}`);
     console.error(`[AILEX API] ${rest.method || 'GET'} ${url} → ${response.status}: ${errorMsg}`);
     throw new Error(errorMsg);
   }
@@ -220,7 +274,7 @@ export async function exportLegalQueryDocx(payload) {
     }
 
     const error = await response.json().catch(() => ({ detail: response.statusText }));
-    throw new Error(error.detail || error.message || `HTTP ${response.status}`);
+    throw new Error(normalizeApiErrorMessage(error, `HTTP ${response.status}`));
   }
 
   const blob = await response.blob();
