@@ -159,3 +159,35 @@ test('normalizeLegalQueryResponse limpia placeholders rotos en campos visibles',
   assert.equal(normalized.output_modes.user.title, 'Orientacion inicial para');
   assert.equal(normalized.output_modes.user.summary, 'Resumen con');
 });
+
+test('normalizeLegalQueryResponse preserva core_legal_response para la UI', () => {
+  const normalized = normalizeLegalQueryResponse({
+    core_legal_response: {
+      direct_answer: 'Podes iniciar el divorcio aunque la otra parte no quiera.',
+      action_steps: ['Reunir acta de matrimonio.'],
+      required_documents: ['DNI'],
+      local_practice_notes: ['En Jujuy suele presentarse con propuesta reguladora.'],
+      professional_frame: { checklist: ['Competencia'] },
+      optional_clarification: '¿Hay hijos menores?',
+    },
+    output_modes: {
+      user: {
+        required_documents: ['Partidas'],
+        local_practice_notes: ['Conviene ordenar domicilios.'],
+        optional_clarification: '¿Hay bienes?',
+      },
+      professional: {
+        professional_frame: { checklist: ['Modelo base'] },
+      },
+    },
+  });
+
+  assert.equal(
+    normalized.core_legal_response.direct_answer,
+    'Podes iniciar el divorcio aunque la otra parte no quiera.',
+  );
+  assert.deepEqual(normalized.core_legal_response.action_steps, ['Reunir acta de matrimonio.']);
+  assert.equal(normalized.output_modes.user.required_documents[0], 'Partidas');
+  assert.equal(normalized.output_modes.user.optional_clarification, '¿Hay bienes?');
+  assert.equal(normalized.output_modes.professional.professional_frame.checklist[0], 'Modelo base');
+});

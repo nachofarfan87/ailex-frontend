@@ -125,10 +125,11 @@ function FollowupCard({
   quickReplyDisabled = false,
   hint = '',
   followupType = '',
+  eyebrow = '',
 }) {
   if (!question) return null;
 
-  const eyebrow =
+  const eyebrowText = eyebrow ||
     followupType === 'critical_data'
       ? 'Dato clave para afinar'
       : followupType === 'confirmation'
@@ -154,7 +155,7 @@ function FollowupCard({
   return (
     <section className={readingStyles.followupCard}>
       <div className={readingStyles.followupHead}>
-        <span className={readingStyles.followupEyebrow}>{eyebrow}</span>
+        <span className={readingStyles.followupEyebrow}>{eyebrowText}</span>
         <h4 className={readingStyles.followupTitle}>{question}</h4>
       </div>
       {hint ? <p className={readingStyles.followupHint}>{hint}</p> : null}
@@ -227,6 +228,30 @@ function decisionStrengthLabel(strength) {
   return 'Orientacion prudente';
 }
 
+function CoreLegalResponseSection({ title, eyebrow = '', items = [], text = '' }) {
+  const normalizedItems = Array.isArray(items) ? items.filter(Boolean) : [];
+  const normalizedText = String(text || '').trim();
+  if (!normalizedItems.length && !normalizedText) return null;
+
+  return (
+    <section className={readingStyles.nextBestStepCard}>
+      <div className={readingStyles.nextBestStepHead}>
+        <span className={readingStyles.nextBestStepEyebrow}>{eyebrow || title}</span>
+      </div>
+      <h4 className={readingStyles.primaryReadingTitle}>{title}</h4>
+      {normalizedText ? (
+        <p className={readingStyles.nextBestStepReason}>{normalizedText}</p>
+      ) : null}
+      {normalizedItems.length ? (
+        <CompactList
+          items={normalizedItems}
+          className={readingStyles.nextBestStepList}
+        />
+      ) : null}
+    </section>
+  );
+}
+
 export default function LegalQueryResults({
   response,
   requestContext = {},
@@ -242,6 +267,11 @@ export default function LegalQueryResults({
   const isClarificationMode = display.mode === 'clarification';
   const hasConversationalChat = display.conversationalResponse.messages.length > 0;
   const snapshot = display.conversational.caseProgressSnapshot;
+  const hasCoreLegalResponse = Boolean(display.hasCoreLegalResponse);
+  const hasCoreActionSteps = display.coreActionSteps?.length > 0;
+  const hasCoreRequiredDocuments = display.coreRequiredDocuments?.length > 0;
+  const hasCoreLocalPracticeNotes = display.coreLocalPracticeNotes?.length > 0;
+  const hasCoreOptionalClarification = Boolean(display.coreOptionalClarification);
 
   const hasProfessionalMode = Boolean(
     professionalMode.summary ||
@@ -271,7 +301,10 @@ export default function LegalQueryResults({
     display.conversational.secondaryMissingFacts?.length > 0 ||
     display.conversational.asked_questions?.length > 0;
   const nextBestStep = display.nextBestStep || display.quickStart || display.summary;
-  const showNextBestStepCard = display.showNextBestStepCard !== false && Boolean(nextBestStep);
+  const showNextBestStepCard =
+    !hasCoreActionSteps &&
+    display.showNextBestStepCard !== false &&
+    Boolean(nextBestStep);
   const nextBestStepReason =
     display.nextStepWhy ||
     display.followupPurpose ||
@@ -311,6 +344,7 @@ export default function LegalQueryResults({
     display.caseWorkspace.actionPlan.length,
     display.caseWorkspace.primaryMissingFacts.length,
   ]);
+  const shouldRenderLegacyFollowup = !hasConversationalChat && !hasCoreOptionalClarification;
 
   return (
     <article className={styles.assistantCard}>
@@ -351,26 +385,70 @@ export default function LegalQueryResults({
       <LegalQueryExportActions response={normalized} requestContext={requestContext} />
 
       <div className={readingStyles.readingFlow}>
-        <section
-          className={`${readingStyles.primaryReadingCard} ${
-            isClarificationMode ? readingStyles.primaryReadingCardClarification : ''
-          }`}
-        >
-          <div className={readingStyles.primaryReadingHead}>
-            <span className={readingStyles.primaryReadingEyebrow}>{display.primaryReadingEyebrow}</span>
-            <h4 className={readingStyles.primaryReadingTitle}>{display.primaryReadingTitle}</h4>
-          </div>
-          <p className={readingStyles.primaryReadingText}>{display.primaryReadingText}</p>
-          {primaryReadingSupport ? (
-            <p className={readingStyles.primaryReadingSupport}>{primaryReadingSupport}</p>
-          ) : null}
-          {display.advanceBasis ? (
-            <p className={styles.subtleHintStrong}>{display.advanceBasis}</p>
-          ) : null}
-          {userLimitHint ? (
-            <p className={styles.subtleHint}>{userLimitHint}</p>
-          ) : null}
-        </section>
+        {hasCoreLegalResponse ? (
+          <section className={readingStyles.primaryReadingCard}>
+            <div className={readingStyles.primaryReadingHead}>
+              <span className={readingStyles.primaryReadingEyebrow}>Respuesta directa</span>
+              <h4 className={readingStyles.primaryReadingTitle}>Lo importante para este caso</h4>
+            </div>
+            <p className={readingStyles.primaryReadingText}>
+              {display.coreDirectAnswer || display.primaryReadingText}
+            </p>
+            {display.advanceBasis ? (
+              <p className={styles.subtleHintStrong}>{display.advanceBasis}</p>
+            ) : null}
+            {primaryReadingSupport && !display.showLegacyPrimaryReading ? (
+              <p className={readingStyles.primaryReadingSupport}>{primaryReadingSupport}</p>
+            ) : null}
+          </section>
+        ) : null}
+
+        {display.showLegacyPrimaryReading ? (
+          <section
+            className={`${readingStyles.primaryReadingCard} ${
+              isClarificationMode ? readingStyles.primaryReadingCardClarification : ''
+            }`}
+          >
+            <div className={readingStyles.primaryReadingHead}>
+              <span className={readingStyles.primaryReadingEyebrow}>{display.primaryReadingEyebrow}</span>
+              <h4 className={readingStyles.primaryReadingTitle}>{display.primaryReadingTitle}</h4>
+            </div>
+            <p className={readingStyles.primaryReadingText}>{display.primaryReadingText}</p>
+            {primaryReadingSupport ? (
+              <p className={readingStyles.primaryReadingSupport}>{primaryReadingSupport}</p>
+            ) : null}
+            {display.advanceBasis ? (
+              <p className={styles.subtleHintStrong}>{display.advanceBasis}</p>
+            ) : null}
+            {userLimitHint ? (
+              <p className={styles.subtleHint}>{userLimitHint}</p>
+            ) : null}
+          </section>
+        ) : null}
+
+        {hasCoreActionSteps ? (
+          <CoreLegalResponseSection
+            title="Que podes hacer ahora"
+            items={display.coreActionSteps}
+            eyebrow="Pasos concretos"
+          />
+        ) : null}
+
+        {hasCoreRequiredDocuments ? (
+          <CoreLegalResponseSection
+            title="Que necesitas reunir"
+            items={display.coreRequiredDocuments}
+            eyebrow="Documentacion"
+          />
+        ) : null}
+
+        {hasCoreLocalPracticeNotes ? (
+          <CoreLegalResponseSection
+            title="En Jujuy"
+            items={display.coreLocalPracticeNotes}
+            eyebrow="Guia local"
+          />
+        ) : null}
 
         {showNextBestStepCard ? (
           <section className={readingStyles.nextBestStepCard}>
@@ -427,7 +505,20 @@ export default function LegalQueryResults({
             />
           </section>
         ) : null}
-        {!hasConversationalChat ? (
+        {hasCoreOptionalClarification ? (
+          <FollowupCard
+            question={display.coreOptionalClarification}
+            options={display.conversational.options}
+            onQuickReply={onQuickReply}
+            onSubmitAnswer={onSubmitAnswer || onQuickReply}
+            activeQuickReply={activeQuickReply}
+            quickReplyDisabled={quickReplyDisabled}
+            hint="Esta aclaracion sirve para ajustar mejor la orientacion, pero no desplaza lo que ya podes hacer."
+            followupType={display.followupType}
+            eyebrow="Para afinar mejor"
+          />
+        ) : null}
+        {shouldRenderLegacyFollowup ? (
           <FollowupCard
             question={display.primaryReadingQuestion}
             options={display.conversational.options}

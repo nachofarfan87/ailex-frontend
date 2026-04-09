@@ -55,6 +55,10 @@ function normalizeOutputMode(mode) {
     next_steps: asArray(safeMode.next_steps),
     key_risks: asArray(safeMode.key_risks),
     missing_information: asArray(safeMode.missing_information),
+    required_documents: asArray(safeMode.required_documents),
+    local_practice_notes: asArray(safeMode.local_practice_notes),
+    optional_clarification: toSafeString(safeMode.optional_clarification),
+    professional_frame: asObject(safeMode.professional_frame),
     confidence_explained: String(safeMode.confidence_explained || ''),
     strategic_narrative: String(safeMode.strategic_narrative || ''),
     conflict_summary: asArray(safeMode.conflict_summary),
@@ -405,6 +409,7 @@ export function normalizeLegalQueryResponse(payload = {}) {
   const caseStrategy = asObject(safePayload.case_strategy || legalStrategy.case_strategy);
   const normativeReasoning = asObject(safePayload.normative_reasoning);
   const outputModes = asObject(safePayload.output_modes);
+  const coreLegalResponse = asObject(safePayload.core_legal_response);
   const caseProgress = normalizeCaseProgress(safePayload.case_progress);
   const caseProgressSnapshot = asObject(safePayload.case_progress_snapshot);
   const caseProgressNarrative = normalizeCaseProgressNarrative(
@@ -492,6 +497,14 @@ export function normalizeLegalQueryResponse(payload = {}) {
     output_modes: {
       user: normalizeOutputMode(outputModes.user),
       professional: normalizeOutputMode(outputModes.professional),
+    },
+    core_legal_response: {
+      direct_answer: toSafeString(coreLegalResponse.direct_answer),
+      action_steps: asArray(coreLegalResponse.action_steps),
+      required_documents: asArray(coreLegalResponse.required_documents),
+      local_practice_notes: asArray(coreLegalResponse.local_practice_notes),
+      professional_frame: asObject(coreLegalResponse.professional_frame),
+      optional_clarification: toSafeString(coreLegalResponse.optional_clarification),
     },
     conversational: normalizeConversational(safePayload.conversational),
     conversational_response: normalizeConversationalResponse(safePayload.conversational_response),

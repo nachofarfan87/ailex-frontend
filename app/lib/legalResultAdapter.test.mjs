@@ -1840,3 +1840,98 @@ test('adaptLegalResultForDisplay expone fase operativa y handoff reforzado', () 
   );
   assert.ok(display.caseWorkspace.handoff.professionalEntryPoint.includes('via principal'));
 });
+
+test('prioriza core_legal_response como bloque principal visible', () => {
+  const display = adaptLegalResultForDisplay({
+    core_legal_response: {
+      direct_answer: 'Podes iniciar el divorcio aunque la otra parte no quiera.',
+      action_steps: [
+        'Reunir acta de matrimonio.',
+        'Preparar una propuesta reguladora basica.',
+      ],
+      required_documents: ['DNI', 'Acta de matrimonio'],
+      local_practice_notes: ['En Jujuy suele presentarse en el fuero de familia.'],
+      professional_frame: { checklist: ['Competencia', 'Propuesta reguladora'] },
+      optional_clarification: '¿Hay hijos menores?',
+    },
+    conversational: {
+      message: 'Necesito confirmar un punto antes de seguir.',
+      question: '¿Hay hijos menores?',
+      should_ask_first: true,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: ['hijos'],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.hasCoreLegalResponse, true);
+  assert.equal(
+    display.coreDirectAnswer,
+    'Podes iniciar el divorcio aunque la otra parte no quiera.',
+  );
+  assert.deepEqual(display.coreActionSteps, [
+    'Reunir acta de matrimonio.',
+    'Preparar una propuesta reguladora basica.',
+  ]);
+  assert.deepEqual(display.coreRequiredDocuments, ['DNI', 'Acta de matrimonio']);
+  assert.deepEqual(display.coreLocalPracticeNotes, [
+    'En Jujuy suele presentarse en el fuero de familia.',
+  ]);
+  assert.equal(display.coreOptionalClarification, '¿Hay hijos menores?');
+  assert.equal(display.showLegacyPrimaryReading, false);
+});
+
+test('oculta nextBestStep legacy cuando core action steps ya cubre la accion principal', () => {
+  const display = adaptLegalResultForDisplay({
+    core_legal_response: {
+      direct_answer: 'Ya hay base para avanzar.',
+      action_steps: ['Reunir acta de matrimonio.'],
+    },
+    quick_start: 'Reunir acta de matrimonio.',
+    case_strategy: {
+      recommended_actions: ['Reunir acta de matrimonio.'],
+    },
+    conversational: {
+      message: 'Hay base suficiente para orientar.',
+      should_ask_first: false,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: [],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.showNextBestStepCard, false);
+  assert.deepEqual(display.coreActionSteps, ['Reunir acta de matrimonio.']);
+});
+
+test('mantiene compatibilidad legacy cuando no existe core_legal_response', () => {
+  const display = adaptLegalResultForDisplay({
+    quick_start: 'Iniciar el tramite principal.',
+    conversational: {
+      message: 'Hay base suficiente para avanzar.',
+      should_ask_first: false,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: [],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.hasCoreLegalResponse, false);
+  assert.equal(display.showLegacyPrimaryReading, true);
+  assert.equal(display.showNextBestStepCard, true);
+});

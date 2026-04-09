@@ -35,6 +35,10 @@ function normalizeMode(mode) {
     next_steps: asArray(safeMode.next_steps),
     key_risks: asArray(safeMode.key_risks),
     missing_information: asArray(safeMode.missing_information),
+    required_documents: asArray(safeMode.required_documents),
+    local_practice_notes: asArray(safeMode.local_practice_notes),
+    optional_clarification: pickFirstText(safeMode.optional_clarification),
+    professional_frame: asObject(safeMode.professional_frame),
     confidence_explained: pickFirstText(safeMode.confidence_explained),
     strategic_narrative: pickFirstText(safeMode.strategic_narrative),
     conflict_summary: asArray(safeMode.conflict_summary),
@@ -44,6 +48,55 @@ function normalizeMode(mode) {
     critical_missing_information: asArray(safeMode.critical_missing_information),
     ordinary_missing_information: asArray(safeMode.ordinary_missing_information),
     normative_focus: asArray(safeMode.normative_focus),
+  };
+}
+
+function normalizeCoreLegalResponse(raw, userMode = {}, professionalMode = {}) {
+  const safe = asObject(raw);
+  const actionSteps = deduplicateItems(
+    asArray(safe.action_steps).map(itemToText).filter(Boolean),
+  );
+  const requiredDocuments = deduplicateItems(
+    mergeAndDeduplicate(
+      asArray(safe.required_documents),
+      asArray(userMode.required_documents),
+    ).map(itemToText).filter(Boolean),
+  );
+  const localPracticeNotes = deduplicateItems(
+    mergeAndDeduplicate(
+      asArray(safe.local_practice_notes),
+      asArray(userMode.local_practice_notes),
+    ).map(itemToText).filter(Boolean),
+  );
+  const professionalFrame = {
+    ...asObject(professionalMode.professional_frame),
+    ...asObject(safe.professional_frame),
+  };
+
+  const directAnswer = pickFirstText(
+    safe.direct_answer,
+    userMode.what_this_means,
+    userMode.summary,
+  );
+  const optionalClarification = pickFirstText(
+    safe.optional_clarification,
+    userMode.optional_clarification,
+  );
+
+  return {
+    direct_answer: directAnswer,
+    action_steps: actionSteps,
+    required_documents: requiredDocuments,
+    local_practice_notes: localPracticeNotes,
+    professional_frame: professionalFrame,
+    optional_clarification: optionalClarification,
+    hasCoreLegalResponse: Boolean(
+      directAnswer ||
+        actionSteps.length ||
+        requiredDocuments.length ||
+        localPracticeNotes.length ||
+        optionalClarification,
+    ),
   };
 }
 
@@ -760,6 +813,11 @@ export function adaptLegalResultForDisplay(response) {
   const outputModes = asObject(safeResponse.output_modes);
   const userMode = normalizeMode(outputModes.user);
   const professionalMode = normalizeMode(outputModes.professional);
+  const coreLegalResponse = normalizeCoreLegalResponse(
+    safeResponse.core_legal_response,
+    userMode,
+    professionalMode,
+  );
   const rawResponseText = pickFirstText(safeResponse.response_text);
   const conversational = normalizeConversational(safeResponse.conversational);
   const conversationalResponse = normalizeConversationalResponse(
@@ -956,10 +1014,21 @@ export function adaptLegalResultForDisplay(response) {
     professionalJudgment.decision_transparency,
   );
   const professionalJudgmentHighlights = buildProfessionalJudgmentHighlights(professionalJudgment);
-  const showNextBestStepCard = Boolean(nextBestStepWithStrength) && !textLooksRedundant(
+  const hasCoreLegalResponse = coreLegalResponse.hasCoreLegalResponse;
+  const coreDirectAnswer = coreLegalResponse.direct_answer;
+  const coreActionSteps = coreLegalResponse.action_steps;
+  const coreRequiredDocuments = coreLegalResponse.required_documents;
+  const coreLocalPracticeNotes = coreLegalResponse.local_practice_notes;
+  const coreOptionalClarification = coreLegalResponse.optional_clarification;
+  const coreProfessionalFrame = coreLegalResponse.professional_frame;
+  const showLegacyPrimaryReading = !hasCoreLegalResponse || !coreDirectAnswer;
+  const showNextBestStepCard = !hasCoreLegalResponse && Boolean(nextBestStepWithStrength) && !textLooksRedundant(
     nextBestStepWithStrength,
-    [primaryReadingTextFinal],
+    [primaryReadingTextFinal, ...coreActionSteps],
   );
+  const effectivePrimaryReadingQuestion = hasCoreLegalResponse
+    ? ''
+    : effectiveFollowupQuestion;
   const advanceBasis = buildAdvanceBasis({
     shouldAskFirst,
     followup: effectiveFollowup,
@@ -982,6 +1051,14 @@ export function adaptLegalResultForDisplay(response) {
     missingInformation: pendingClarifications,
     confidenceExplained,
     professionalMode,
+    hasCoreLegalResponse,
+    coreDirectAnswer,
+    coreActionSteps,
+    coreRequiredDocuments,
+    coreLocalPracticeNotes,
+    coreOptionalClarification,
+    coreProfessionalFrame,
+    showLegacyPrimaryReading,
     rawResponseText,
     rawResponse: safeResponse,
     primaryClarifications,
@@ -1011,7 +1088,7 @@ export function adaptLegalResultForDisplay(response) {
       'AILEX no devolvio una orientacion breve clara, pero la respuesta completa sigue disponible.',
     primaryReadingSupport,
     advanceBasis,
-    primaryReadingQuestion: effectiveFollowupQuestion,
+    primaryReadingQuestion: effectivePrimaryReadingQuestion,
     nextBestStep: nextBestStepWithStrength,
     showNextBestStepCard,
     supportingNextSteps,
