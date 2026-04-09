@@ -228,6 +228,27 @@ function decisionStrengthLabel(strength) {
   return 'Orientacion prudente';
 }
 
+function buildNaturalTitle({ display, normalized }) {
+  const caseDomain = String(normalized.case_domain || '').trim().toLowerCase();
+  const focus = String(
+    normalized.core_legal_response?.focus_trace?.primary_focus ||
+      display.rawResponse?.core_legal_response?.focus_trace?.primary_focus ||
+      '',
+  ).trim().toLowerCase();
+
+  if (caseDomain === 'divorcio') {
+    if (focus === 'protection_urgency') return 'Divorcio: que conviene resolver urgente';
+    if (focus === 'children') return 'Divorcio: que tenes que resolver primero por tus hijos';
+    if (focus === 'housing') return 'Divorcio: como ordenar el tema de la vivienda';
+    if (focus === 'property') return 'Divorcio: como ordenar bienes y vivienda';
+    return 'Divorcio: que tenes que hacer ahora';
+  }
+  if (caseDomain === 'alimentos') return 'Alimentos: que conviene hacer ahora';
+  if (caseDomain === 'sucesion') return 'Sucesion: por donde conviene empezar';
+  if (display.title) return display.title;
+  return 'Que conviene hacer ahora';
+}
+
 function CoreLegalResponseSection({ title, eyebrow = '', items = [], text = '' }) {
   const normalizedItems = Array.isArray(items) ? items.filter(Boolean) : [];
   const normalizedText = String(text || '').trim();
@@ -345,158 +366,58 @@ export default function LegalQueryResults({
     display.caseWorkspace.primaryMissingFacts.length,
   ]);
   const shouldRenderLegacyFollowup = !hasConversationalChat && !hasCoreOptionalClarification;
+  const naturalTitle = buildNaturalTitle({ display, normalized });
+  const visibleDirectAnswer =
+    display.coreDirectAnswer || display.primaryReadingText || display.summary;
+  const visibleActionSteps = hasCoreActionSteps
+    ? display.coreActionSteps
+    : [
+        nextBestStep && !String(nextBestStep).startsWith('Lo mas conveniente ahora es')
+          ? safeText(nextBestStep)
+          : safeText(nextBestStep).replace(/^Lo mas conveniente ahora es\s*/i, ''),
+        ...display.supportingNextSteps,
+      ].filter(Boolean);
 
   return (
     <article className={styles.assistantCard}>
       <header className={styles.assistantHeader}>
         <div className={styles.assistantLead}>
-          <p className={styles.eyebrow}>Orientacion juridica</p>
-          <h3 className={styles.assistantTitle}>
-            {display.title || normalized.query || 'Resultado juridico'}
-          </h3>
-        </div>
-        <div className={styles.assistantMeta}>
-          {normalized.jurisdiction ? (
-            <span className={styles.pill}>{humanizeLabel(normalized.jurisdiction)}</span>
-          ) : null}
-          {normalized.forum ? (
-            <span className={styles.pill}>{humanizeLabel(normalized.forum)}</span>
-          ) : null}
-          {normalized.case_domain ? (
-            <span className={styles.pillStrong}>{humanizeLabel(normalized.case_domain)}</span>
-          ) : null}
-          <span className={isClarificationMode ? styles.pillAlert : styles.pill}>
-            {display.modeLabel}
-          </span>
-          {typeof normalized.confidence === 'number' ? (
-            <span className={styles.pill}>
-              Confianza {formatConfidence(normalized.confidence)}
-            </span>
-          ) : null}
-          {normalized.is_partial ? (
-            <span className={styles.pillAlert}>Respuesta parcial</span>
-          ) : null}
-          {normalized.is_empty ? (
-            <span className={styles.pillAlert}>Respuesta vacia</span>
-          ) : null}
+          <h3 className={styles.assistantTitle}>{naturalTitle}</h3>
         </div>
       </header>
 
-      <LegalQueryExportActions response={normalized} requestContext={requestContext} />
-
       <div className={readingStyles.readingFlow}>
-        {hasCoreLegalResponse ? (
-          <section className={readingStyles.primaryReadingCard}>
-            <div className={readingStyles.primaryReadingHead}>
-              <span className={readingStyles.primaryReadingEyebrow}>Respuesta directa</span>
-              <h4 className={readingStyles.primaryReadingTitle}>Lo importante para este caso</h4>
-            </div>
-            <p className={readingStyles.primaryReadingText}>
-              {display.coreDirectAnswer || display.primaryReadingText}
-            </p>
-            {display.advanceBasis ? (
-              <p className={styles.subtleHintStrong}>{display.advanceBasis}</p>
-            ) : null}
-            {primaryReadingSupport && !display.showLegacyPrimaryReading ? (
-              <p className={readingStyles.primaryReadingSupport}>{primaryReadingSupport}</p>
-            ) : null}
-          </section>
-        ) : null}
+        <section
+          className={`${readingStyles.primaryReadingCard} ${
+            isClarificationMode && !hasCoreLegalResponse
+              ? readingStyles.primaryReadingCardClarification
+              : ''
+          }`}
+        >
+          <p className={readingStyles.primaryReadingText}>{visibleDirectAnswer}</p>
+          {display.advanceBasis ? (
+            <p className={styles.subtleHintStrong}>{display.advanceBasis}</p>
+          ) : null}
+          {primaryReadingSupport && !hasCoreLegalResponse ? (
+            <p className={readingStyles.primaryReadingSupport}>{primaryReadingSupport}</p>
+          ) : null}
+          {userLimitHint && !hasCoreLegalResponse ? (
+            <p className={styles.subtleHint}>{userLimitHint}</p>
+          ) : null}
+        </section>
 
-        {display.showLegacyPrimaryReading ? (
-          <section
-            className={`${readingStyles.primaryReadingCard} ${
-              isClarificationMode ? readingStyles.primaryReadingCardClarification : ''
-            }`}
-          >
-            <div className={readingStyles.primaryReadingHead}>
-              <span className={readingStyles.primaryReadingEyebrow}>{display.primaryReadingEyebrow}</span>
-              <h4 className={readingStyles.primaryReadingTitle}>{display.primaryReadingTitle}</h4>
-            </div>
-            <p className={readingStyles.primaryReadingText}>{display.primaryReadingText}</p>
-            {primaryReadingSupport ? (
-              <p className={readingStyles.primaryReadingSupport}>{primaryReadingSupport}</p>
-            ) : null}
-            {display.advanceBasis ? (
-              <p className={styles.subtleHintStrong}>{display.advanceBasis}</p>
-            ) : null}
-            {userLimitHint ? (
-              <p className={styles.subtleHint}>{userLimitHint}</p>
-            ) : null}
-          </section>
-        ) : null}
-
-        {hasCoreActionSteps ? (
+        {visibleActionSteps.length ? (
           <CoreLegalResponseSection
-            title="Que podes hacer ahora"
-            items={display.coreActionSteps}
-            eyebrow="Pasos concretos"
+            title="Que tenes que hacer ahora"
+            items={visibleActionSteps}
           />
-        ) : null}
-
-        {hasCoreRequiredDocuments ? (
-          <CoreLegalResponseSection
-            title="Que necesitas reunir"
-            items={display.coreRequiredDocuments}
-            eyebrow="Documentacion"
-          />
-        ) : null}
-
-        {hasCoreLocalPracticeNotes ? (
-          <CoreLegalResponseSection
-            title="En Jujuy"
-            items={display.coreLocalPracticeNotes}
-            eyebrow="Guia local"
-          />
-        ) : null}
-
-        {showNextBestStepCard ? (
-          <section className={readingStyles.nextBestStepCard}>
-            <div className={readingStyles.nextBestStepHead}>
-              <span className={readingStyles.nextBestStepEyebrow}>Proximo mejor paso</span>
-              <div className={styles.assistantMeta}>
-                {display.nextStepPriority ? (
-                  <span className={readingStyles.nextBestStepTag}>
-                    {nextStepPriorityLabel(display.nextStepPriority)}
-                  </span>
-                ) : null}
-                {display.decisionStrength ? (
-                  <span className={readingStyles.nextBestStepTag}>
-                    {decisionStrengthLabel(display.decisionStrength)}
-                  </span>
-                ) : null}
-              </div>
-            </div>
-            <p className={readingStyles.nextBestStepText}>{safeText(nextBestStep)}</p>
-            {nextBestStepReason ? (
-              <p className={readingStyles.nextBestStepReason}>{nextBestStepReason}</p>
-            ) : null}
-            {nextBestStepHint ? (
-              <p className={readingStyles.nextBestStepHint}>{nextBestStepHint}</p>
-            ) : null}
-            {prudenceBridge ? (
-              <p className={styles.subtleHintStrong}>{prudenceBridge}</p>
-            ) : null}
-            {display.supportingNextSteps?.length ? (
-              <div className={readingStyles.nextBestStepSupport}>
-                <span className={readingStyles.nextBestStepSupportLabel}>
-                  Despues de eso, puede seguir con:
-                </span>
-                <CompactList
-                  items={display.supportingNextSteps}
-                  className={readingStyles.nextBestStepList}
-                />
-              </div>
-            ) : null}
-          </section>
         ) : null}
 
         {hasConversationalChat ? (
           <section className={readingStyles.primaryConversationSection}>
             <div className={readingStyles.primaryConversationHead}>
-              <span className={readingStyles.primaryConversationEyebrow}>Aclaracion guiada</span>
               <p className={readingStyles.primaryConversationText}>
-                Esto no frena el avance: sirve para ajustar mejor el siguiente paso.
+                Si queres afinar mejor la orientacion, contame esto:
               </p>
             </div>
             <ConversationalChat
@@ -513,9 +434,9 @@ export default function LegalQueryResults({
             onSubmitAnswer={onSubmitAnswer || onQuickReply}
             activeQuickReply={activeQuickReply}
             quickReplyDisabled={quickReplyDisabled}
-            hint="Esta aclaracion sirve para ajustar mejor la orientacion, pero no desplaza lo que ya podes hacer."
+            hint="Esto ayuda a ajustar mejor el siguiente paso, pero no cambia lo principal."
             followupType={display.followupType}
-            eyebrow="Para afinar mejor"
+            eyebrow="Si queres, contame esto"
           />
         ) : null}
         {shouldRenderLegacyFollowup ? (
@@ -528,14 +449,45 @@ export default function LegalQueryResults({
             quickReplyDisabled={quickReplyDisabled}
             hint={display.followupWhy || display.followupPurpose || snapshot?.followupDirectionHint || ''}
             followupType={display.followupType}
+            eyebrow="Si queres, contame esto"
           />
         ) : null}
       </div>
 
+      {hasCoreRequiredDocuments ? (
+        <ResultDisclosure
+          title="Si queres ver mas detalle"
+          subtitle="Documentos y contexto practico"
+        >
+          <div className={styles.secondaryGrid}>
+            <section className={styles.secondaryCard}>
+              <h4 className={styles.secondaryCardTitle}>Que conviene reunir</h4>
+              <CompactList items={display.coreRequiredDocuments} />
+            </section>
+            {hasCoreLocalPracticeNotes ? (
+              <section className={styles.secondaryCard}>
+                <h4 className={styles.secondaryCardTitle}>En Jujuy</h4>
+                <CompactList items={display.coreLocalPracticeNotes} />
+              </section>
+            ) : null}
+          </div>
+        </ResultDisclosure>
+      ) : hasCoreLocalPracticeNotes ? (
+        <ResultDisclosure
+          title="Si queres ver mas detalle"
+          subtitle="Contexto practico"
+        >
+          <section className={styles.secondaryCard}>
+            <h4 className={styles.secondaryCardTitle}>En Jujuy</h4>
+            <CompactList items={display.coreLocalPracticeNotes} />
+          </section>
+        </ResultDisclosure>
+      ) : null}
+
       {hasCaseMap ? (
         <ResultDisclosure
-          title="Ver mapa del caso"
-          subtitle="Faltantes, datos ya definidos, riesgos y pasos de apoyo"
+          title="Mas detalle del caso"
+          subtitle="Faltantes, datos definidos y pasos de apoyo"
           badge={caseMapCount ? String(caseMapCount) : ''}
         >
           <div className={styles.secondaryGrid}>
@@ -620,8 +572,8 @@ export default function LegalQueryResults({
 
       {showCaseWorkspace ? (
         <ResultDisclosure
-          title="Workspace del caso"
-          subtitle="Checklist, faltantes, plan de accion y handoff profesional"
+          title="Herramientas de trabajo"
+          subtitle="Checklist, faltantes y plan de accion"
           badge={workspaceCount ? String(workspaceCount) : ''}
         >
           <CaseWorkspacePanel workspace={display.caseWorkspace} />
@@ -630,8 +582,8 @@ export default function LegalQueryResults({
 
       {showCaseProgressSnapshot ? (
         <ResultDisclosure
-          title="Estado del caso"
-          subtitle="Readiness, foco operativo y progreso general"
+          title="Seguimiento del caso"
+          subtitle="Progreso general"
           badge={snapshot?.percentage ? `${snapshot.percentage}%` : ''}
         >
           <CaseProgressSnapshot snapshot={snapshot} />
@@ -640,8 +592,8 @@ export default function LegalQueryResults({
 
       {hasNormative ? (
         <ResultDisclosure
-          title="Normativa relevante"
-          subtitle="Fundamentos y normas aplicadas"
+          title="Normativa"
+          subtitle="Fundamentos aplicados"
           badge={String(display.normativeItems.length)}
         >
           <NormativeCompact items={display.normativeItems} />
@@ -651,7 +603,7 @@ export default function LegalQueryResults({
       {hasWarnings ? (
         <ResultDisclosure
           title="Advertencias"
-          subtitle="Alertas de seguridad, prudencia o consistencia"
+          subtitle="Puntos para revisar"
           badge={String(warnings.length)}
           tone="alert"
         >
@@ -661,8 +613,7 @@ export default function LegalQueryResults({
 
       {!isClarificationMode && display.confidenceExplained ? (
         <ResultDisclosure
-          title="Detalle de confianza"
-          subtitle="Por que la orientacion es mas o menos solida"
+          title="Por que esta orientacion va por aca"
         >
           <p className={styles.panelText}>{display.confidenceExplained}</p>
         </ResultDisclosure>
@@ -670,8 +621,8 @@ export default function LegalQueryResults({
 
       {hasProfessionalMode ? (
         <ResultDisclosure
-          title="Vista profesional"
-          subtitle="Estrategia, faltantes procesales y normativa en detalle"
+          title="Detalle profesional"
+          subtitle="Estrategia y soporte tecnico"
           tone="accent"
         >
           <div className={styles.resultsStack}>
@@ -797,12 +748,16 @@ export default function LegalQueryResults({
 
       {display.rawResponseText ? (
         <ResultDisclosure
-          title="Respuesta completa original"
-          subtitle="Salida textual sin resumir"
+          title="Texto completo"
+          subtitle="Salida original"
         >
           <p className={styles.panelText}>{display.rawResponseText}</p>
         </ResultDisclosure>
       ) : null}
+
+      <ResultDisclosure title="Exportar o copiar" subtitle="Opciones de salida">
+        <LegalQueryExportActions response={normalized} requestContext={requestContext} />
+      </ResultDisclosure>
     </article>
   );
 }
