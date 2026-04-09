@@ -8,7 +8,7 @@ function asObject(value) {
 
 function pickFirstText(...values) {
   for (const value of values) {
-    const text = String(value || '').trim();
+    const text = extractDisplayText(value);
     if (text) return text;
   }
   return '';
@@ -16,7 +16,10 @@ function pickFirstText(...values) {
 
 function extractDisplayText(value) {
   if (value === null || value === undefined) return '';
-  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'string') {
+    const cleaned = _sanitizeVisibleString(value);
+    return _looksBrokenVisibleText(cleaned) ? '' : cleaned;
+  }
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   if (Array.isArray(value)) {
     return value.map(extractDisplayText).filter(Boolean).join('; ');
@@ -38,13 +41,17 @@ function extractDisplayText(value) {
   return '';
 }
 
+function toSafeString(value) {
+  return extractDisplayText(value);
+}
+
 function normalizeOutputMode(mode) {
   const safeMode = asObject(mode);
   return {
-    title: String(safeMode.title || ''),
-    summary: String(safeMode.summary || ''),
-    quick_start: String(safeMode.quick_start || ''),
-    what_this_means: String(safeMode.what_this_means || ''),
+    title: toSafeString(safeMode.title),
+    summary: toSafeString(safeMode.summary),
+    quick_start: toSafeString(safeMode.quick_start),
+    what_this_means: toSafeString(safeMode.what_this_means),
     next_steps: asArray(safeMode.next_steps),
     key_risks: asArray(safeMode.key_risks),
     missing_information: asArray(safeMode.missing_information),
@@ -66,7 +73,7 @@ function normalizeCaseCompleteness(value) {
     is_complete: Boolean(safeValue.is_complete),
     missing_critical: asArray(safeValue.missing_critical),
     missing_optional: asArray(safeValue.missing_optional),
-    confidence_level: String(safeValue.confidence_level || ''),
+    confidence_level: toSafeString(safeValue.confidence_level),
     known_count: typeof safeValue.known_count === 'number' ? safeValue.known_count : 0,
   };
 }
@@ -94,8 +101,8 @@ function normalizeConversationalResponse(value) {
   const safeValue = asObject(value);
   const rawMessages = asArray(safeValue.messages);
   return {
-    mode: String(safeValue.mode || '').trim(),
-    domain: String(safeValue.domain || '').trim(),
+    mode: toSafeString(safeValue.mode),
+    domain: toSafeString(safeValue.domain),
     messages: rawMessages
       .map((item) => {
         const safeItem = asObject(item);
@@ -113,12 +120,12 @@ function normalizeCaseProgress(value) {
   const safeValue = asObject(value);
   const basis = asObject(safeValue.basis);
   return {
-    stage: String(safeValue.stage || '').trim(),
+    stage: toSafeString(safeValue.stage),
     readiness_level:
       typeof safeValue.readiness_level === 'number' ? safeValue.readiness_level : null,
-    readiness_label: String(safeValue.readiness_label || '').trim(),
-    progress_status: String(safeValue.progress_status || '').trim(),
-    next_step_type: String(safeValue.next_step_type || '').trim(),
+    readiness_label: toSafeString(safeValue.readiness_label),
+    progress_status: toSafeString(safeValue.progress_status),
+    next_step_type: toSafeString(safeValue.next_step_type),
     blocking_issues: asArray(safeValue.blocking_issues),
     critical_gaps: asArray(safeValue.critical_gaps),
     important_gaps: asArray(safeValue.important_gaps),
@@ -126,7 +133,7 @@ function normalizeCaseProgress(value) {
     contradiction_count:
       typeof safeValue.contradiction_count === 'number' ? safeValue.contradiction_count : 0,
     has_contradictions: Boolean(safeValue.has_contradictions),
-    progress_delta: String(safeValue.progress_delta || '').trim(),
+    progress_delta: toSafeString(safeValue.progress_delta),
     basis,
   };
 }
@@ -147,10 +154,10 @@ function normalizeCaseProgressNarrative(value) {
 function normalizeSmartStrategy(value) {
   const safeValue = asObject(value);
   return {
-    strategy_mode: String(safeValue.strategy_mode || '').trim(),
-    response_goal: String(safeValue.response_goal || '').trim(),
-    recommended_tone: String(safeValue.recommended_tone || '').trim(),
-    recommended_structure: String(safeValue.recommended_structure || '').trim(),
+    strategy_mode: toSafeString(safeValue.strategy_mode),
+    response_goal: toSafeString(safeValue.response_goal),
+    recommended_tone: toSafeString(safeValue.recommended_tone),
+    recommended_structure: toSafeString(safeValue.recommended_structure),
     should_prioritize_action: Boolean(safeValue.should_prioritize_action),
     should_prioritize_clarification: Boolean(safeValue.should_prioritize_clarification),
     should_limit_analysis: Boolean(safeValue.should_limit_analysis),
@@ -165,13 +172,13 @@ function normalizeProfessionalJudgment(value) {
     applies: Boolean(safeValue.applies),
     dominant_factor: extractDisplayText(safeValue.dominant_factor),
     practical_risk: extractDisplayText(safeValue.practical_risk),
-    position_strength: String(safeValue.position_strength || '').trim(),
+    position_strength: toSafeString(safeValue.position_strength),
     blocking_issue: extractDisplayText(safeValue.blocking_issue),
     best_next_move: extractDisplayText(safeValue.best_next_move),
-    prudence_level: String(safeValue.prudence_level || '').trim(),
-    recommendation_stance: String(safeValue.recommendation_stance || '').trim(),
+    prudence_level: toSafeString(safeValue.prudence_level),
+    recommendation_stance: toSafeString(safeValue.recommendation_stance),
     why_this_matters_now: extractDisplayText(safeValue.why_this_matters_now),
-    exposure_level: String(safeValue.exposure_level || '').trim(),
+    exposure_level: toSafeString(safeValue.exposure_level),
     strengthens_position: extractDisplayText(safeValue.strengthens_position),
     weakens_position: extractDisplayText(safeValue.weakens_position),
     missing_to_strengthen: extractDisplayText(safeValue.missing_to_strengthen),
@@ -191,9 +198,9 @@ function normalizeDecisionTransparency(value) {
   return {
     applies: Boolean(safeValue.applies),
     technical_trace: {
-      decision_intent: String(technicalTrace.decision_intent || '').trim(),
-      calibrated_state: String(technicalTrace.calibrated_state || '').trim(),
-      dominant_signal: String(technicalTrace.dominant_signal || '').trim(),
+      decision_intent: toSafeString(technicalTrace.decision_intent),
+      calibrated_state: toSafeString(technicalTrace.calibrated_state),
+      dominant_signal: toSafeString(technicalTrace.dominant_signal),
       dominant_signal_score:
         typeof technicalTrace.dominant_signal_score === 'number'
           ? technicalTrace.dominant_signal_score
@@ -201,7 +208,7 @@ function normalizeDecisionTransparency(value) {
       signal_scores: asObject(technicalTrace.signal_scores),
       decision_trace: asArray(technicalTrace.decision_trace).map(extractDisplayText).filter(Boolean),
       rule_trace: asArray(technicalTrace.rule_trace).map(extractDisplayText).filter(Boolean),
-      clarification_status: String(technicalTrace.clarification_status || '').trim(),
+      clarification_status: toSafeString(technicalTrace.clarification_status),
       precision_required: Boolean(technicalTrace.precision_required),
       followup_present: Boolean(technicalTrace.followup_present),
       confidence_context: {
@@ -210,7 +217,7 @@ function normalizeDecisionTransparency(value) {
           typeof confidenceContext.decision_confidence_score === 'number'
             ? confidenceContext.decision_confidence_score
             : null,
-        decision_confidence_level: String(confidenceContext.decision_confidence_level || '').trim(),
+        decision_confidence_level: toSafeString(confidenceContext.decision_confidence_level),
         confidence_clarity_score:
           typeof confidenceContext.confidence_clarity_score === 'number'
             ? confidenceContext.confidence_clarity_score
@@ -219,9 +226,9 @@ function normalizeDecisionTransparency(value) {
           typeof confidenceContext.confidence_stability_score === 'number'
             ? confidenceContext.confidence_stability_score
             : null,
-        dominance_level: String(confidenceContext.dominance_level || '').trim(),
-        blocking_severity: String(confidenceContext.blocking_severity || '').trim(),
-        prudence_level: String(confidenceContext.prudence_level || '').trim(),
+        dominance_level: toSafeString(confidenceContext.dominance_level),
+        blocking_severity: toSafeString(confidenceContext.blocking_severity),
+        prudence_level: toSafeString(confidenceContext.prudence_level),
       },
     },
     professional_explanation: {
@@ -242,7 +249,7 @@ function normalizeDecisionTransparency(value) {
       const safeItem = asObject(item);
       return {
         option: extractDisplayText(safeItem.option),
-        status: String(safeItem.status || '').trim(),
+        status: toSafeString(safeItem.status),
         reason: extractDisplayText(safeItem.reason),
       };
     }),
@@ -252,22 +259,22 @@ function normalizeDecisionTransparency(value) {
 function normalizeCaseWorkspaceFact(value) {
   const safeValue = asObject(value);
   return {
-    key: String(safeValue.key || '').trim(),
+    key: toSafeString(safeValue.key),
     label: extractDisplayText(safeValue.label),
     value: safeValue.value,
-    source: String(safeValue.source || '').trim(),
+    source: toSafeString(safeValue.source),
     confidence:
       typeof safeValue.confidence === 'number' ? safeValue.confidence : null,
-    category: String(safeValue.category || '').trim(),
-    priority: String(safeValue.priority || '').trim(),
-    purpose: String(safeValue.purpose || '').trim(),
+    category: toSafeString(safeValue.category),
+    priority: toSafeString(safeValue.priority),
+    purpose: toSafeString(safeValue.purpose),
   };
 }
 
 function normalizeCaseWorkspaceConflict(value) {
   const safeValue = asObject(value);
   return {
-    key: String(safeValue.key || '').trim(),
+    key: toSafeString(safeValue.key),
     label: extractDisplayText(safeValue.label),
     prev_value: safeValue.prev_value,
     new_value: safeValue.new_value,
@@ -279,18 +286,18 @@ function normalizeCaseWorkspaceConflict(value) {
 function normalizeCaseWorkspaceAction(value) {
   const safeValue = asObject(value);
   return {
-    id: String(safeValue.id || '').trim(),
-    step_id: String(safeValue.step_id || safeValue.id || '').trim(),
+    id: toSafeString(safeValue.id),
+    step_id: toSafeString(safeValue.step_id || safeValue.id),
     title: extractDisplayText(safeValue.title),
     description: extractDisplayText(safeValue.description),
-    priority: String(safeValue.priority || '').trim(),
-    status: String(safeValue.status || '').trim(),
+    priority: toSafeString(safeValue.priority),
+    status: toSafeString(safeValue.status),
     is_primary: Boolean(safeValue.is_primary),
-    phase: String(safeValue.phase || '').trim(),
+    phase: toSafeString(safeValue.phase),
     phase_label: extractDisplayText(safeValue.phase_label),
     blocked_by_missing_info: Boolean(safeValue.blocked_by_missing_info),
     why_now: extractDisplayText(safeValue.why_now),
-    depends_on: asArray(safeValue.depends_on).map((item) => String(item || '').trim()).filter(Boolean),
+    depends_on: asArray(safeValue.depends_on).map((item) => toSafeString(item)).filter(Boolean),
     why_it_matters: extractDisplayText(safeValue.why_it_matters),
     source_hint: extractDisplayText(safeValue.source_hint),
   };
@@ -299,17 +306,17 @@ function normalizeCaseWorkspaceAction(value) {
 function normalizeCaseWorkspaceEvidenceItem(value) {
   const safeValue = asObject(value);
   return {
-    key: String(safeValue.key || '').trim(),
+    key: toSafeString(safeValue.key),
     label: extractDisplayText(safeValue.label),
     description: extractDisplayText(safeValue.description),
     reason: extractDisplayText(safeValue.reason),
-    missing_level: String(safeValue.missing_level || '').trim(),
+    missing_level: toSafeString(safeValue.missing_level),
     priority_rank:
       typeof safeValue.priority_rank === 'number' ? safeValue.priority_rank : 0,
-    evidence_role: String(safeValue.evidence_role || '').trim(),
+    evidence_role: toSafeString(safeValue.evidence_role),
     why_it_matters: extractDisplayText(safeValue.why_it_matters),
     resolves: asArray(safeValue.resolves).map((item) => String(item || '').trim()).filter(Boolean),
-    supports_step: String(safeValue.supports_step || '').trim(),
+    supports_step: toSafeString(safeValue.supports_step),
   };
 }
 
@@ -326,8 +333,8 @@ function normalizeProfessionalHandoff(value) {
   const safeValue = asObject(value);
   return {
     ready_for_professional_review: Boolean(safeValue.ready_for_professional_review),
-    status: String(safeValue.status || '').trim(),
-    review_readiness: String(safeValue.review_readiness || '').trim(),
+    status: toSafeString(safeValue.status),
+    review_readiness: toSafeString(safeValue.review_readiness),
     handoff_reason: extractDisplayText(safeValue.handoff_reason),
     primary_friction: extractDisplayText(safeValue.primary_friction),
     recommended_professional_focus: extractDisplayText(
@@ -346,13 +353,13 @@ function normalizeCaseWorkspace(value) {
   const strategySnapshot = asObject(safeValue.strategy_snapshot);
 
   return {
-    case_id: String(safeValue.case_id || '').trim(),
-    workspace_version: String(safeValue.workspace_version || '').trim(),
-    case_status: String(safeValue.case_status || '').trim(),
+    case_id: toSafeString(safeValue.case_id),
+    workspace_version: toSafeString(safeValue.workspace_version),
+    case_status: toSafeString(safeValue.case_status),
     case_status_label: extractDisplayText(safeValue.case_status_label),
     case_status_helper: extractDisplayText(safeValue.case_status_helper),
-    operating_phase: String(safeValue.operating_phase || '').trim(),
-    recommended_phase: String(safeValue.recommended_phase || '').trim(),
+    operating_phase: toSafeString(safeValue.operating_phase),
+    recommended_phase: toSafeString(safeValue.recommended_phase),
     recommended_phase_label: extractDisplayText(safeValue.recommended_phase_label),
     operating_phase_reason: extractDisplayText(safeValue.operating_phase_reason),
     primary_focus: asObject(safeValue.primary_focus),
@@ -361,12 +368,12 @@ function normalizeCaseWorkspace(value) {
     facts_missing: asArray(safeValue.facts_missing).map(normalizeCaseWorkspaceFact),
     facts_conflicting: asArray(safeValue.facts_conflicting).map(normalizeCaseWorkspaceConflict),
     strategy_snapshot: {
-      strategy_mode: String(strategySnapshot.strategy_mode || '').trim(),
+      strategy_mode: toSafeString(strategySnapshot.strategy_mode),
       response_goal: extractDisplayText(strategySnapshot.response_goal),
       reason: extractDisplayText(strategySnapshot.reason),
-      output_mode: String(strategySnapshot.output_mode || '').trim(),
-      recommended_tone: String(strategySnapshot.recommended_tone || '').trim(),
-      recommended_structure: String(strategySnapshot.recommended_structure || '').trim(),
+      output_mode: toSafeString(strategySnapshot.output_mode),
+      recommended_tone: toSafeString(strategySnapshot.recommended_tone),
+      recommended_structure: toSafeString(strategySnapshot.recommended_structure),
       allow_followup: Boolean(strategySnapshot.allow_followup),
       prioritize_action: Boolean(strategySnapshot.prioritize_action),
     },
@@ -375,15 +382,15 @@ function normalizeCaseWorkspace(value) {
     risk_alerts: asArray(safeValue.risk_alerts).map((item) => {
       const safeItem = asObject(item);
       return {
-        type: String(safeItem.type || '').trim(),
-        severity: String(safeItem.severity || '').trim(),
+        type: toSafeString(safeItem.type),
+        severity: toSafeString(safeItem.severity),
         message: extractDisplayText(safeItem.message),
-        source: String(safeItem.source || '').trim(),
+        source: toSafeString(safeItem.source),
       };
     }),
     recommended_next_question: extractDisplayText(safeValue.recommended_next_question),
     professional_handoff: normalizeProfessionalHandoff(safeValue.professional_handoff),
-    last_updated_at: String(safeValue.last_updated_at || '').trim(),
+    last_updated_at: toSafeString(safeValue.last_updated_at),
   };
 }
 
@@ -404,12 +411,12 @@ export function normalizeLegalQueryResponse(payload = {}) {
     safePayload.case_progress_narrative,
   );
 
-  const caseDomain = String(
+  const caseDomain = toSafeString(
     safePayload.case_domain || legalStrategy.case_domain || caseProfile.case_domain || '',
-  ).trim();
+  );
   const caseDomains = asArray(
     safePayload.case_domains || legalStrategy.case_domains || caseProfile.case_domains,
-  ).filter(Boolean);
+  ).map((item) => toSafeString(item)).filter(Boolean);
 
   const summaryText = pickFirstText(
     caseStrategy.strategic_narrative,
@@ -419,17 +426,17 @@ export function normalizeLegalQueryResponse(payload = {}) {
   );
 
   const normalized = {
-    query: String(safePayload.query || ''),
-    jurisdiction: String(safePayload.jurisdiction || ''),
-    forum: String(safePayload.forum || ''),
+    query: toSafeString(safePayload.query),
+    jurisdiction: toSafeString(safePayload.jurisdiction),
+    forum: toSafeString(safePayload.forum),
     case_domain: caseDomain,
     case_domains: caseDomains,
     retrieved_items: asArray(safePayload.retrieved_items),
     context: asObject(safePayload.context),
     reasoning: {
-      short_answer: String(reasoning.short_answer || ''),
-      case_analysis: String(reasoning.case_analysis || ''),
-      applied_analysis: String(reasoning.applied_analysis || ''),
+      short_answer: toSafeString(reasoning.short_answer),
+      case_analysis: toSafeString(reasoning.case_analysis),
+      applied_analysis: toSafeString(reasoning.applied_analysis),
       normative_foundations: asArray(reasoning.normative_foundations),
       warnings: asArray(reasoning.warnings),
       citations_used: asArray(reasoning.citations_used),
@@ -441,7 +448,7 @@ export function normalizeLegalQueryResponse(payload = {}) {
             : null,
     },
     normative_reasoning: {
-      summary: String(normativeReasoning.summary || ''),
+      summary: toSafeString(normativeReasoning.summary),
       inferences: asArray(normativeReasoning.inferences),
       requirements: asArray(normativeReasoning.requirements),
       applied_rules: asArray(normativeReasoning.applied_rules),
@@ -457,7 +464,7 @@ export function normalizeLegalQueryResponse(payload = {}) {
       is_safe:
         typeof hallucinationGuard.is_safe === "boolean" ? hallucinationGuard.is_safe : null,
       warnings: asArray(hallucinationGuard.warnings),
-      severity: String(hallucinationGuard.severity || ''),
+      severity: toSafeString(hallucinationGuard.severity),
       confidence_adjustment:
         typeof hallucinationGuard.confidence_adjustment === 'number'
           ? hallucinationGuard.confidence_adjustment
@@ -473,7 +480,7 @@ export function normalizeLegalQueryResponse(payload = {}) {
     },
     case_profile: caseProfile,
     case_strategy: {
-      strategic_narrative: String(caseStrategy.strategic_narrative || ''),
+      strategic_narrative: toSafeString(caseStrategy.strategic_narrative),
       conflict_summary: asArray(caseStrategy.conflict_summary),
       risk_analysis: asArray(caseStrategy.risk_analysis),
       recommended_actions: asArray(caseStrategy.recommended_actions),
@@ -494,8 +501,8 @@ export function normalizeLegalQueryResponse(payload = {}) {
     case_progress_snapshot: caseProgressSnapshot,
     case_progress_narrative: caseProgressNarrative,
     case_workspace: normalizeCaseWorkspace(safePayload.case_workspace),
-    response_text: String(safePayload.response_text || ''),
-    quick_start: String(safePayload.quick_start || ''),
+    response_text: toSafeString(safePayload.response_text),
+    quick_start: toSafeString(safePayload.quick_start),
     visible_summary: summaryText,
     generated_document:
       typeof safePayload.generated_document === 'string' ? safePayload.generated_document : '',
@@ -551,7 +558,7 @@ export function formatConfidence(confidence) {
 }
 
 export function humanizeLabel(value) {
-  return String(value || '')
+  return extractDisplayText(value)
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
@@ -600,4 +607,19 @@ function _isPartial(normalized) {
       !normalized.case_strategy.recommended_actions.length &&
       !normalized.case_strategy.conflict_summary.length,
   );
+}
+
+function _looksBrokenVisibleText(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized === '[object object]' || normalized === '{}' || normalized === 'undefined' || normalized === 'null';
+}
+
+function _sanitizeVisibleString(value) {
+  return String(value || '')
+    .replace(/\[object Object\]/gi, '')
+    .replace(/\{\}/g, '')
+    .replace(/\bundefined\b/gi, '')
+    .replace(/\bnull\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }

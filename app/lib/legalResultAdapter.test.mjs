@@ -341,6 +341,36 @@ test('visibiliza prudencia cuando se puede avanzar con resguardos', () => {
   );
 });
 
+test('adaptLegalResultForDisplay no deja pasar titulos ni pills rotos', () => {
+  const display = adaptLegalResultForDisplay({
+    case_domain: { label: 'divorcio' },
+    jurisdiction: { label: 'Jujuy' },
+    forum: { label: 'Civil' },
+    output_modes: {
+      user: {
+        title: 'Orientacion inicial para {}',
+        summary: 'Resumen base',
+      },
+      professional: {},
+    },
+    conversational: {
+      message: 'Mensaje con [object Object]',
+      should_ask_first: false,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: [],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+  });
+
+  assert.ok(!display.title.includes('{}'));
+  assert.ok(!display.title.includes('[object Object]'));
+  assert.equal(display.title, 'Orientacion inicial para');
+});
+
 test('adaptLegalResultForDisplay prioriza quick start como proximo mejor paso cuando no hay next_step conversacional', () => {
   const display = adaptLegalResultForDisplay({
     case_domain: 'divorcio',

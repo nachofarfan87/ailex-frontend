@@ -20,7 +20,7 @@ import {
 import { buildCaseWorkspaceDisplay } from './caseWorkspaceAdapter.js';
 
 function humanizeDomain(domain) {
-  const text = String(domain || '').trim();
+  const text = extractDisplayText(domain);
   if (!text) return 'Resultado juridico';
   return text.replace(/_/g, ' ');
 }

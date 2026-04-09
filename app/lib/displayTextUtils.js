@@ -8,7 +8,7 @@ export function asObject(value) {
 
 export function pickFirstText(...values) {
   for (const value of values) {
-    const text = String(value || '').trim();
+    const text = extractDisplayText(value);
     if (text) return text;
   }
   return '';
@@ -25,7 +25,7 @@ export function normalizeForComparison(text) {
 export function itemToText(item) {
   if (typeof item === 'string') return item;
   if (!item || typeof item !== 'object') return '';
-  return (
+  return extractDisplayText(
     item.label ||
     item.title ||
     item.titulo ||
@@ -33,8 +33,7 @@ export function itemToText(item) {
     item.question ||
     item.name ||
     item.article ||
-    item.source_id ||
-    ''
+    item.source_id
   );
 }
 
@@ -55,7 +54,10 @@ export function isSameAction(left, right) {
 
 export function extractDisplayText(value) {
   if (value === null || value === undefined) return '';
-  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'string') {
+    const cleaned = sanitizeVisibleString(value);
+    return looksBrokenVisibleText(cleaned) ? '' : cleaned;
+  }
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   if (typeof value === 'object' && !Array.isArray(value)) {
     const candidate =
@@ -75,6 +77,21 @@ export function extractDisplayText(value) {
     return value.map(extractDisplayText).filter(Boolean).join('; ');
   }
   return '';
+}
+
+function looksBrokenVisibleText(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized === '[object object]' || normalized === '{}' || normalized === 'undefined' || normalized === 'null';
+}
+
+function sanitizeVisibleString(value) {
+  return String(value || '')
+    .replace(/\[object Object\]/gi, '')
+    .replace(/\{\}/g, '')
+    .replace(/\bundefined\b/gi, '')
+    .replace(/\bnull\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
 
 export function deduplicateItems(items) {

@@ -139,3 +139,23 @@ test('normalizeLegalQueryResponse preserva professional_judgment para la UI', ()
     'Este paso se prioriza porque hoy es el que mejor hace avanzar el caso.',
   );
 });
+
+test('normalizeLegalQueryResponse limpia placeholders rotos en campos visibles', () => {
+  const normalized = normalizeLegalQueryResponse({
+    jurisdiction: { label: 'Jujuy' },
+    forum: { label: 'Civil' },
+    case_domain: { label: 'Divorcio' },
+    output_modes: {
+      user: {
+        title: 'Orientacion inicial para {}',
+        summary: 'Resumen con [object Object]',
+      },
+    },
+  });
+
+  assert.equal(normalized.jurisdiction, 'Jujuy');
+  assert.equal(normalized.forum, 'Civil');
+  assert.equal(normalized.case_domain, 'Divorcio');
+  assert.equal(normalized.output_modes.user.title, 'Orientacion inicial para');
+  assert.equal(normalized.output_modes.user.summary, 'Resumen con');
+});
