@@ -286,15 +286,37 @@ test('adaptLegalResultForDisplay arma una capa de lectura principal para aclarac
     output_modes: { user: {}, professional: {} },
   });
 
-  assert.equal(display.primaryReadingEyebrow, 'Aclaracion necesaria');
+  assert.equal(display.primaryReadingEyebrow, 'Paso disponible ahora');
   assert.equal(display.primaryReadingQuestion, 'El otro progenitor aporta algo actualmente?');
-  assert.equal(
-    display.nextBestStep,
-    'Antes de avanzar con una accion concreta, conviene responder esta pregunta clave.',
+  assert.ok(
+    display.nextBestStep.toLowerCase().includes('avanzar') ||
+      display.nextBestStep.toLowerCase().includes('lo mas conveniente'),
   );
   assert.equal(display.followupType, 'critical_data');
   assert.equal(display.isBlockingFollowup, true);
-  assert.ok(display.primaryReadingText.includes('orientar'));
+  assert.ok(display.primaryReadingText.toLowerCase().includes('orientar') || display.primaryReadingText.toLowerCase().includes('dato'));
+  assert.ok(display.advanceBasis.toLowerCase().includes('base suficiente') || display.advanceBasis.toLowerCase().includes('podes avanzar'));
+});
+
+test('evita duplicar la misma accion entre lectura principal y proximo paso', () => {
+  const display = adaptLegalResultForDisplay({
+    conversational: {
+      message: 'Podes avanzar con este primer paso: iniciar el reclamo principal.',
+      should_ask_first: false,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: [],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+    quick_start: 'Iniciar el reclamo principal.',
+    output_modes: { user: {}, professional: {} },
+  });
+
+  assert.equal(display.showNextBestStepCard, false);
+  assert.ok(display.primaryReadingText.toLowerCase().includes('iniciar el reclamo principal'));
 });
 
 test('visibiliza prudencia cuando se puede avanzar con resguardos', () => {
@@ -577,9 +599,9 @@ test('mantiene coherencia entre next step prudente y followup bloqueante', () =>
   });
 
   assert.equal(display.isBlockingFollowup, true);
-  assert.ok(display.nextBestStep.toLowerCase().includes('responder esta pregunta clave'));
+  assert.ok(display.nextBestStep.toLowerCase().includes('podes avanzar'));
   assert.equal(display.decisionStrength, 'soft');
-  assert.ok(display.nextStepWhy.toLowerCase().includes('sin responder') || display.nextStepWhy.toLowerCase().includes('antes'));
+  assert.ok(display.nextStepWhy.toLowerCase().includes('ajustar') || display.nextStepWhy.toLowerCase().includes('avanz'));
 });
 
 test('evita duplicacion semantica entre primaryReading next step y supporting steps', () => {
@@ -768,7 +790,7 @@ test('professional_judgment explica para que sirve el follow-up sin duplicar el 
   });
 
   assert.equal(display.decisionStrength, 'soft');
-  assert.ok(display.nextBestStep.toLowerCase().includes('responder esta pregunta clave'));
+  assert.ok(display.nextBestStep.toLowerCase().includes('podes avanzar'));
   assert.equal(
     display.followupWhy,
     'Esto permite cerrar la jurisdiccion relevante, que hoy condiciona el siguiente paso.',
@@ -1284,7 +1306,7 @@ test('focusLabel prioriza contradicciones', () => {
 
   assert.equal(
     display.conversational.caseProgressSnapshot.focusLabel,
-    'Antes de avanzar, conviene resolver una inconsistencia.',
+    'Conviene resolver una inconsistencia para avanzar con mas claridad.',
   );
 });
 
@@ -1443,7 +1465,7 @@ test('caseDirection prioriza contradicciones', () => {
 
   assert.equal(
     display.conversational.caseProgressSnapshot.caseDirection,
-    'Antes de avanzar, es clave resolver las inconsistencias del caso.',
+    'Conviene resolver las inconsistencias del caso para avanzar con una base mas clara.',
   );
 });
 

@@ -130,9 +130,9 @@ function FollowupCard({
 
   const eyebrow =
     followupType === 'critical_data'
-      ? 'Dato critico para seguir'
+      ? 'Dato clave para afinar'
       : followupType === 'confirmation'
-        ? 'Confirmacion necesaria'
+        ? 'Confirmacion para ajustar'
         : 'Dato para afinar';
   const [answer, setAnswer] = useState('');
   const canSubmit = Boolean(onSubmitAnswer) && !quickReplyDisabled && answer.trim();
@@ -271,6 +271,7 @@ export default function LegalQueryResults({
     display.conversational.secondaryMissingFacts?.length > 0 ||
     display.conversational.asked_questions?.length > 0;
   const nextBestStep = display.nextBestStep || display.quickStart || display.summary;
+  const showNextBestStepCard = display.showNextBestStepCard !== false && Boolean(nextBestStep);
   const nextBestStepReason =
     display.nextStepWhy ||
     display.followupPurpose ||
@@ -363,12 +364,15 @@ export default function LegalQueryResults({
           {primaryReadingSupport ? (
             <p className={readingStyles.primaryReadingSupport}>{primaryReadingSupport}</p>
           ) : null}
+          {display.advanceBasis ? (
+            <p className={styles.subtleHintStrong}>{display.advanceBasis}</p>
+          ) : null}
           {userLimitHint ? (
             <p className={styles.subtleHint}>{userLimitHint}</p>
           ) : null}
         </section>
 
-        {nextBestStep ? (
+        {showNextBestStepCard ? (
           <section className={readingStyles.nextBestStepCard}>
             <div className={readingStyles.nextBestStepHead}>
               <span className={readingStyles.nextBestStepEyebrow}>Proximo mejor paso</span>
@@ -414,7 +418,7 @@ export default function LegalQueryResults({
             <div className={readingStyles.primaryConversationHead}>
               <span className={readingStyles.primaryConversationEyebrow}>Aclaracion guiada</span>
               <p className={readingStyles.primaryConversationText}>
-                Responde este bloque para seguir afinando la orientacion del caso.
+                Esto no frena el avance: sirve para ajustar mejor el siguiente paso.
               </p>
             </div>
             <ConversationalChat

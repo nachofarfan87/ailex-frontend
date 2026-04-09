@@ -283,7 +283,7 @@ function findQuestionTarget(question, candidates) {
 }
 
 function buildFocusLabel({ contradictions, criticalGaps, stage, nextStepType, blockers, readinessLabel }) {
-  if (contradictions.length) return 'Antes de avanzar, conviene resolver una inconsistencia.';
+  if (contradictions.length) return 'Conviene resolver una inconsistencia para avanzar con mas claridad.';
   if (criticalGaps.length) return 'Lo mas importante ahora es completar los datos clave del caso.';
   if (stage === 'decision' && !criticalGaps.length) return 'El caso ya permite comparar opciones y decidir.';
   if ((stage === 'ejecucion' || nextStepType === 'execute') && !blockers.length && readinessLabel === 'high') {
@@ -295,7 +295,7 @@ function buildFocusLabel({ contradictions, criticalGaps, stage, nextStepType, bl
 }
 
 function buildCaseDirection({ contradictions, criticalGaps, stage, nextStepType, blockers, readinessLabel }) {
-  if (contradictions.length) return 'Antes de avanzar, es clave resolver las inconsistencias del caso.';
+  if (contradictions.length) return 'Conviene resolver las inconsistencias del caso para avanzar con una base mas clara.';
   if (criticalGaps.length) return 'El foco ahora esta en completar la informacion necesaria para poder avanzar con seguridad.';
   if (stage === 'decision' && !criticalGaps.length) return 'El caso ya tiene base suficiente para evaluar opciones y tomar una decision.';
   if ((stage === 'ejecucion' || nextStepType === 'execute') && !blockers.length && readinessLabel === 'high') {
@@ -339,7 +339,7 @@ export function buildCaseProgressSnapshot(response, conversational, fallbackProg
   const clarifiedPreview = deduplicateItems(clarifiedItems).slice(0, 4);
   const title =
     stage === 'inconsistente'
-      ? 'Antes de avanzar, conviene ordenar una inconsistencia'
+      ? 'Conviene ordenar una inconsistencia para seguir con claridad'
       : stage === 'bloqueado'
         ? 'Hay un freno que conviene destrabar'
         : stage === 'decision'
