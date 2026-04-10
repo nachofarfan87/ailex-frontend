@@ -48,6 +48,14 @@ function normalizeMode(mode) {
     critical_missing_information: asArray(safeMode.critical_missing_information),
     ordinary_missing_information: asArray(safeMode.ordinary_missing_information),
     normative_focus: asArray(safeMode.normative_focus),
+    checklist: asArray(safeMode.checklist),
+    drafting_points: asArray(safeMode.drafting_points),
+    forum_hint: pickFirstText(safeMode.forum_hint),
+    filing_shape: pickFirstText(safeMode.filing_shape),
+    next_move: pickFirstText(safeMode.next_move),
+    model_hint: pickFirstText(safeMode.model_hint),
+    primary_focus: pickFirstText(safeMode.primary_focus),
+    secondary_focuses: asArray(safeMode.secondary_focuses),
   };
 }
 
@@ -823,18 +831,21 @@ export function adaptLegalResultForDisplay(response) {
   const conversationalResponse = normalizeConversationalResponse(
     safeResponse.conversationalResponse || safeResponse.conversational_response,
   );
+  const hasCoreLegalResponse = coreLegalResponse.hasCoreLegalResponse;
 
   const summary =
-    conversational.guided_response ||
-    conversational.message ||
     userMode.summary ||
+    (hasCoreLegalResponse ? coreLegalResponse.direct_answer : '') ||
+    conversational.message ||
+    conversational.guided_response ||
     pickFirstText(reasoning.short_answer, reasoning.case_analysis, rawResponseText);
 
   const quickStart = userMode.quick_start || pickFirstText(safeResponse.quick_start);
   const whatThisMeans =
     userMode.what_this_means ||
-    conversational.guided_response ||
+    (hasCoreLegalResponse ? coreLegalResponse.direct_answer : '') ||
     conversational.message ||
+    conversational.guided_response ||
     pickFirstText(caseStrategy.strategic_narrative, summary, rawResponseText);
 
   const completeness = conversational.case_completeness;
@@ -1014,7 +1025,6 @@ export function adaptLegalResultForDisplay(response) {
     professionalJudgment.decision_transparency,
   );
   const professionalJudgmentHighlights = buildProfessionalJudgmentHighlights(professionalJudgment);
-  const hasCoreLegalResponse = coreLegalResponse.hasCoreLegalResponse;
   const coreDirectAnswer = coreLegalResponse.direct_answer;
   const coreActionSteps = coreLegalResponse.action_steps;
   const coreRequiredDocuments = coreLegalResponse.required_documents;

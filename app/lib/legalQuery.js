@@ -68,6 +68,14 @@ function normalizeOutputMode(mode) {
     critical_missing_information: asArray(safeMode.critical_missing_information),
     ordinary_missing_information: asArray(safeMode.ordinary_missing_information),
     normative_focus: asArray(safeMode.normative_focus),
+    checklist: asArray(safeMode.checklist),
+    drafting_points: asArray(safeMode.drafting_points),
+    forum_hint: toSafeString(safeMode.forum_hint),
+    filing_shape: toSafeString(safeMode.filing_shape),
+    next_move: toSafeString(safeMode.next_move),
+    model_hint: toSafeString(safeMode.model_hint),
+    primary_focus: toSafeString(safeMode.primary_focus),
+    secondary_focuses: asArray(safeMode.secondary_focuses),
   };
 }
 

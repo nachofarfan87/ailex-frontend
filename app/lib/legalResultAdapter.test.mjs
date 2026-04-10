@@ -1886,6 +1886,33 @@ test('prioriza core_legal_response como bloque principal visible', () => {
   assert.equal(display.showLegacyPrimaryReading, false);
 });
 
+test('prefiere output_modes.user antes que guided_response heredado', () => {
+  const display = adaptLegalResultForDisplay({
+    output_modes: {
+      user: {
+        summary: 'Podes iniciar el divorcio con la documentacion basica.',
+        what_this_means: 'Primero reuni DNI y acta de matrimonio.',
+      },
+      professional: {},
+    },
+    conversational: {
+      guided_response: 'Necesito confirmar un punto antes de seguir.',
+      message: 'Mensaje conversacional heredado.',
+      should_ask_first: true,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: ['domicilio'],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+  });
+
+  assert.equal(display.summary, 'Podes iniciar el divorcio con la documentacion basica.');
+  assert.equal(display.whatThisMeans, 'Primero reuni DNI y acta de matrimonio.');
+});
+
 test('oculta nextBestStep legacy cuando core action steps ya cubre la accion principal', () => {
   const display = adaptLegalResultForDisplay({
     core_legal_response: {
@@ -1912,6 +1939,44 @@ test('oculta nextBestStep legacy cuando core action steps ya cubre la accion pri
 
   assert.equal(display.showNextBestStepCard, false);
   assert.deepEqual(display.coreActionSteps, ['Reunir acta de matrimonio.']);
+});
+
+test('preserva metadatos del modo profesional enriquecido para uso posterior', () => {
+  const display = adaptLegalResultForDisplay({
+    output_modes: {
+      user: {},
+      professional: {
+        summary: 'Estrategia base profesional.',
+        checklist: ['Competencia', 'Modelo base'],
+        drafting_points: ['Ordenar hechos', 'Petitorio'],
+        forum_hint: 'Fuero de familia de Jujuy.',
+        filing_shape: 'Peticion con propuesta reguladora.',
+        next_move: 'Definir competencia.',
+        model_hint: 'Modelo de divorcio unilateral',
+        primary_focus: 'children',
+        secondary_focuses: ['procedure'],
+      },
+    },
+    conversational: {
+      should_ask_first: false,
+      known_facts: {},
+      case_completeness: {
+        is_complete: false,
+        missing_critical: [],
+        missing_optional: [],
+        known_count: 0,
+      },
+    },
+  });
+
+  assert.deepEqual(display.professionalMode.checklist, ['Competencia', 'Modelo base']);
+  assert.deepEqual(display.professionalMode.drafting_points, ['Ordenar hechos', 'Petitorio']);
+  assert.equal(display.professionalMode.forum_hint, 'Fuero de familia de Jujuy.');
+  assert.equal(display.professionalMode.filing_shape, 'Peticion con propuesta reguladora.');
+  assert.equal(display.professionalMode.next_move, 'Definir competencia.');
+  assert.equal(display.professionalMode.model_hint, 'Modelo de divorcio unilateral');
+  assert.equal(display.professionalMode.primary_focus, 'children');
+  assert.deepEqual(display.professionalMode.secondary_focuses, ['procedure']);
 });
 
 test('mantiene compatibilidad legacy cuando no existe core_legal_response', () => {

@@ -191,3 +191,29 @@ test('normalizeLegalQueryResponse preserva core_legal_response para la UI', () =
   assert.equal(normalized.output_modes.user.optional_clarification, '¿Hay bienes?');
   assert.equal(normalized.output_modes.professional.professional_frame.checklist[0], 'Modelo base');
 });
+
+test('normalizeLegalQueryResponse preserva campos enriquecidos del modo profesional', () => {
+  const normalized = normalizeLegalQueryResponse({
+    output_modes: {
+      professional: {
+        checklist: ['Competencia', 'Modelo base'],
+        drafting_points: ['Ordenar hechos', 'Petitorio'],
+        forum_hint: 'Fuero de familia de Jujuy.',
+        filing_shape: 'Peticion con propuesta reguladora.',
+        next_move: 'Definir competencia.',
+        model_hint: 'Modelo de divorcio unilateral',
+        primary_focus: 'children',
+        secondary_focuses: ['procedure'],
+      },
+    },
+  });
+
+  assert.deepEqual(normalized.output_modes.professional.checklist, ['Competencia', 'Modelo base']);
+  assert.deepEqual(normalized.output_modes.professional.drafting_points, ['Ordenar hechos', 'Petitorio']);
+  assert.equal(normalized.output_modes.professional.forum_hint, 'Fuero de familia de Jujuy.');
+  assert.equal(normalized.output_modes.professional.filing_shape, 'Peticion con propuesta reguladora.');
+  assert.equal(normalized.output_modes.professional.next_move, 'Definir competencia.');
+  assert.equal(normalized.output_modes.professional.model_hint, 'Modelo de divorcio unilateral');
+  assert.equal(normalized.output_modes.professional.primary_focus, 'children');
+  assert.deepEqual(normalized.output_modes.professional.secondary_focuses, ['procedure']);
+});
